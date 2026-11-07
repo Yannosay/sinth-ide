@@ -1,0 +1,4 @@
+allowBuilds:
+  "@tauri-apps/cli": true
+  esbuild: true
+  vue-demi: true

@@ -1,0 +1,36 @@
+.monaco-editor,
+.monaco-editor .overflow-guard,
+.monaco-editor .margin {
+  background: var(--editor-bg) !important;
+}
+
+.monaco-editor .line-numbers { color: var(--editor-gutter) !important; }
+
+.monaco-editor .current-line,
+.monaco-editor .view-overlays .current-line {
+  border: none !important;
+  background: var(--editor-line-active) !important;
+}
+
+.monaco-editor .cursor {
+  border-left-color: var(--editor-cursor) !important;
+  border-left-width: 2px !important;
+}
+
+.monaco-editor .selected-text,
+.monaco-editor .selectionHighlight {
+  background: var(--editor-selection) !important;
+}
+
+.monaco-editor .suggest-widget,
+.monaco-editor .monaco-hover,
+.monaco-editor .parameter-hints-widget {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list-row.focused {
+  background: var(--accent-soft) !important;
+}
