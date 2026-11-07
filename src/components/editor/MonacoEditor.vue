@@ -44,6 +44,34 @@ ${d.hint}` : d.message,
   monaco.editor.setModelMarkers(model, 'sinth', markers)
 }
 
+// One model per tab keeps undo history, and the saved view state keeps cursor and scroll position, across tab switches.
+const models = new Map<string, monaco.editor.ITextModel>()
+const viewStates = new Map<string, monaco.editor.ICodeEditorViewState | null>()
+
+function modelFor(tab: EditorTab): monaco.editor.ITextModel {
+  let model = models.get(tab.id)
+  if (!model || model.isDisposed()) {
+    const uri = monaco.Uri.file(tab.path)
+    model = monaco.editor.getModel(uri) ?? monaco.editor.createModel(tab.content, tab.language, uri)
+    if (model.getValue() !== tab.content) model.setValue(tab.content)
+    models.set(tab.id, model)
+  }
+  return model
+}
+
+function showTab(next: EditorTab | null, previousId: string | undefined): void {
+  const ed = instance.value
+  if (!ed) return
+  if (previousId) viewStates.set(previousId, ed.saveViewState())
+  if (!next) { ed.setModel(null); return }
+  ed.setModel(modelFor(next))
+  const state = viewStates.get(next.id)
+  if (state) ed.restoreViewState(state)
+  ed.updateOptions({ readOnly: next.readonly })
+  applyMarkers()
+  ed.focus()
+}
+
 let workersReady = false
 function setupWorkers(): void {
   if (workersReady) return
@@ -72,8 +100,7 @@ onMounted(() => {
   if (!container.value) return
 
   instance.value = monaco.editor.create(container.value, {
-    value: props.tab?.content ?? '',
-    language: props.tab?.language ?? 'plaintext',
+    model: props.tab ? modelFor(props.tab) : null,
     theme: monacoThemeFor(settings.theme),
     automaticLayout: true,
     fontFamily: settings.editorFontFamily || 'JetBrains Mono, Cascadia Code, Consolas, monospace',
@@ -108,25 +135,41 @@ onMounted(() => {
   })
 })
 
+function onReveal(e: Event): void {
+  const { line, column } = (e as CustomEvent<{ line: number; column: number }>).detail
+  setTimeout(() => {
+    const ed = instance.value
+    if (!ed) return
+    ed.setPosition({ lineNumber: line, column: column || 1 })
+    ed.revealLineInCenter(line)
+    ed.focus()
+  }, 0)
+}
+window.addEventListener('sinth:reveal', onReveal)
+
 onBeforeUnmount(() => {
+  window.removeEventListener('sinth:reveal', onReveal)
   instance.value?.dispose()
   instance.value = null
+  for (const m of models.values()) m.dispose()
+  models.clear()
 })
 
-watch(() => props.tab?.id, () => {
-  if (!instance.value) return
-  const model = instance.value.getModel()
-  if (!model) return
-  model.setValue(props.tab?.content ?? '')
-  monaco.editor.setModelLanguage(model, props.tab?.language ?? 'plaintext')
-  instance.value.updateOptions({ readOnly: props.tab?.readonly ?? false })
+watch(() => props.tab?.id, (_id, previousId) => showTab(props.tab, previousId))
+
+watch(() => editor.tabs.map(t => t.id), ids => {
+  for (const [id, model] of models) {
+    if (ids.includes(id)) continue
+    model.dispose()
+    models.delete(id)
+    viewStates.delete(id)
+  }
 })
 
 watch(() => props.tab?.content, next => {
-  if (!instance.value) return
-  const model = instance.value.getModel()
-  if (!model) return
-  if (model.getValue() !== next) model.setValue(next ?? '')
+  const model = instance.value?.getModel()
+  if (!model || next === undefined || model.getValue() === next) return
+  model.pushEditOperations([], [{ range: model.getFullModelRange(), text: next }], () => null)
 })
 
 watch(() => settings.theme, t => monaco.editor.setTheme(monacoThemeFor(t)))

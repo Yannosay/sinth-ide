@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useSettingsStore, type ThemeName } from '@/stores/settings'
 import { useUpdaterStore } from '@/stores/updater'
 import { platformShortcut } from '@/composables/useShortcutRouter'
@@ -8,6 +9,17 @@ import FormRow from '@/components/ui/FormRow.vue'
 
 const settings = useSettingsStore()
 const updater = useUpdaterStore()
+
+const updateHint = computed(() => {
+  switch (updater.state) {
+    case 'upToDate': return 'You have the latest version'
+    case 'available': return `Version ${updater.availableVersion} is available`
+    case 'failed': return updater.errorMessage ?? 'The update check failed'
+    case 'downloading': return 'Downloading the update'
+    case 'ready': return 'Restart to finish updating'
+    default: return updater.lastChecked ? `Last checked ${updater.lastChecked.toLocaleTimeString()}` : 'Updates come from GitHub releases and are signature-checked'
+  }
+})
 
 const themeOptions = [
   { value: 'dark', label: 'Sinth Dark' },
@@ -71,13 +83,11 @@ function onThemeUpdate(v: string): void {
       <section class="group">
         <h3 class="group__title">Updates</h3>
         <FormRow label="Check on startup"><Toggle v-model="settings.autoCheckUpdates" /></FormRow>
-        <FormRow label="Check now">
-          <button class="btn" type="button" :disabled="updater.state === 'checking'" @click="updater.checkForUpdate()">
-            {{ updater.state === 'checking' ? 'Checking' : 'Check for updates' }}
+        <FormRow label="Version" :hint="updateHint">
+          <span class="mono">{{ updater.currentVersion }}</span>
+          <button class="btn" type="button" :disabled="updater.state === 'checking' || updater.state === 'downloading'" @click="updater.state === 'available' ? updater.reopen() : updater.checkForUpdate()">
+            {{ updater.state === 'checking' ? 'Checking...' : updater.state === 'available' ? `Install ${updater.availableVersion}` : 'Check for updates' }}
           </button>
-        </FormRow>
-        <FormRow label="Current version" hint="Installed application version">
-          <span class="mono">{{ updater.currentVersion ?? 'unknown' }}</span>
         </FormRow>
       </section>
       <section class="group">

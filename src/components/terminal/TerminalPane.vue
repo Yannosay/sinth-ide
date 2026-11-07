@@ -30,6 +30,11 @@ interface Runtime {
 }
 
 const runtimes = ref<Runtime[]>([])
+// Output that arrives before a terminal's xterm instance exists (the first shell prompt) waits here.
+const pendingOutput = new Map<number, string[]>()
+const exited = new Set<number>()
+let globalUnlisten: UnlistenFn[] = []
+let resizeObserver: ResizeObserver | null = null
 const hostRef = ref<HTMLDivElement | null>(null)
 const searchVisible = ref(false)
 const searchQuery = ref('')
@@ -93,22 +98,22 @@ async function spawnTerminal(cwdOverride?: string): Promise<number | null> {
   term.onData(data => {
     const rt = runtimes.value.find(r => r.id === id)
     if (rt) rt.userInteracted = true
-    void invoke('write_terminal', { id, data })
+    if (!isAlive(id)) {
+      if (data === '\r') void restartTerminal(id)
+      return
+    }
+    invoke('write_terminal', { id, data }).catch(() => store.markDead(id))
   })
 
-  term.onResize(({ cols: c, rows: r }) => { void invoke('resize_terminal', { id, cols: c, rows: r }) })
+  term.onResize(({ cols: c, rows: r }) => { void invoke('resize_terminal', { id, cols: c, rows: r }).catch(() => undefined) })
 
-  const unlisten = await listen<{ data: string }>(`terminal-output:${id}`, ev => { term.write(ev.payload.data) })
-  const unlistenExit = await listen(`terminal-exit:${id}`, () => {
-    store.markDead(id)
-    term.write('\r\n\x1b[2m[process exited]\x1b[0m\r\n')
-  })
-
-  const combined: UnlistenFn = () => { unlisten(); unlistenExit() }
-  runtimes.value.push({ id, term, fit, search, container, unlisten: combined, cwd, userInteracted: false })
+  runtimes.value.push({ id, term, fit, search, container, unlisten: null, cwd, userInteracted: false })
+  for (const chunk of pendingOutput.get(id) ?? []) term.write(chunk)
+  pendingOutput.delete(id)
 
   const title = cwd ? `Shell — ${cwd.split(/[\\/]/).pop() || cwd}` : `Shell ${store.instances.length + 1}`
   store.register({ id, title, cwd, alive: true })
+  if (exited.has(id)) onExit(id)
   setActive(id)
   return id
 }
@@ -159,24 +164,43 @@ async function newTerminal(): Promise<void> {
   await spawnTerminal(workspace.rootPath ?? undefined)
 }
 
+function isAlive(id: number | null): id is number {
+  return id !== null && store.instances.some(i => i.id === id && i.alive)
+}
+
 async function ensureTerminal(): Promise<number | null> {
-  if (runtimes.value.length > 0 && store.activeId !== null) return store.activeId
+  if (isAlive(store.activeId)) return store.activeId
+  const alive = store.instances.find(i => i.alive)
+  if (alive) return alive.id
   return await spawnTerminal(workspace.rootPath ?? undefined)
 }
 
 async function runCommandInActive(command: string): Promise<void> {
-  const id = await ensureTerminal()
-  if (id === null) return
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const id = await ensureTerminal()
+    if (id === null) return
+    const rt = runtimes.value.find(r => r.id === id)
+    if (rt) rt.userInteracted = true
+    setActive(id)
+    try {
+      await invoke('write_terminal', { id, data: command + '\r' })
+      return
+    } catch {
+      store.markDead(id)
+    }
+  }
+}
+
+function onExit(id: number): void {
+  store.markDead(id)
   const rt = runtimes.value.find(r => r.id === id)
-  if (rt) rt.userInteracted = true
-  await invoke('write_terminal', { id, data: command + '\r' })
-  setActive(id)
+  rt?.term.write('\r\n\x1b[2m[process exited, press Enter to restart]\x1b[0m\r\n')
 }
 
 async function interruptActive(): Promise<void> {
   const id = store.activeId
-  if (id === null) return
-  await invoke('write_terminal', { id, data: '\x03' })
+  if (!isAlive(id)) return
+  try { await invoke('write_terminal', { id, data: '\x03' }) } catch { store.markDead(id) }
 }
 
 function clearActive(): void {
@@ -203,7 +227,25 @@ function onNewTerminalEvent(): void {
 }
 
 onMounted(async () => {
+  globalUnlisten = await Promise.all([
+    listen<{ id: number; data: string }>('terminal-output', ev => {
+      const rt = runtimes.value.find(r => r.id === ev.payload.id)
+      if (rt) rt.term.write(ev.payload.data)
+      else pendingOutput.set(ev.payload.id, [...(pendingOutput.get(ev.payload.id) ?? []), ev.payload.data])
+    }),
+    listen<{ id: number }>('terminal-exit', ev => {
+      exited.add(ev.payload.id)
+      if (runtimes.value.some(r => r.id === ev.payload.id)) onExit(ev.payload.id)
+    }),
+  ])
   window.addEventListener('resize', onResize)
+  // Refit whenever the panel itself changes size (sidebar drag, panel shown, first layout).
+  if (hostRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      if (hostRef.value && hostRef.value.clientWidth > 0) requestAnimationFrame(onResize)
+    })
+    resizeObserver.observe(hostRef.value)
+  }
   window.addEventListener('sinth:new-terminal', onNewTerminalEvent)
   window.addEventListener('sinth:terminal-run', onRunEvent)
   window.addEventListener('sinth:terminal-interrupt', onInterruptEvent)
@@ -213,6 +255,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  for (const u of globalUnlisten) u()
+  globalUnlisten = []
+  resizeObserver?.disconnect()
   window.removeEventListener('resize', onResize)
   window.removeEventListener('sinth:new-terminal', onNewTerminalEvent)
   window.removeEventListener('sinth:terminal-run', onRunEvent)

@@ -8,7 +8,7 @@ interface SnippetDef {
 }
 
 const SNIPPETS: SnippetDef[] = [
-  { label: 'page', detail: 'Page skeleton', body: 'page\n\ntitle = "${1:Title}"\ndescr = "${2:Description}"\n\nMain {\n  Heading(level: 1) { "${1:Title}" }\n  $0\n}\n' },
+  { label: 'page', detail: 'Page skeleton', body: 'title = "${1:Title}"\ndescr = "${2:Description}"\n\nMain {\n  Heading(level: 1) { "${1:Title}" }\n  $0\n}\n' },
   { label: 'component', detail: 'Component with a slot and scoped style', body: 'component ${1:Name}(str ${2:title}) {\n  Div(class: "${3:box}") {\n    Heading(level: 3) { ${2:title} }\n    \\$slot\n  }\n\n  style {\n    .${3:box} {\n      padding: "1rem"\n    }\n  }\n}\n' },
   { label: 'function', detail: 'Typed function', body: 'function ${1:name}(${2:num value}) -> ${3:num} {\n  return ${0:value}\n}' },
   { label: 'if', detail: 'Conditional markup', body: 'if ${1:condition} {\n  $0\n} else {\n  \n}' },

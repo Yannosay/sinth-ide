@@ -70,6 +70,7 @@ export const SINTH_META_KEYS: Readonly<Record<string, string>> = {
   author: 'Meta author', keywords: 'Meta keywords', robots: 'Meta robots, e.g. "noindex"',
   themeColor: 'Browser theme color', canonical: 'Canonical URL', ogImage: 'Social preview image',
   bodyClass: 'Class added to <body>', viewport: 'Viewport meta, has a sensible default',
+  paths: 'Dynamic routes only (pages/blog/[slug].sinth): the values to generate, e.g. paths = posts.map((p) => p.slug)',
 }
 
 export const SINTH_DIRECTIVES: Readonly<Record<string, string>> = {

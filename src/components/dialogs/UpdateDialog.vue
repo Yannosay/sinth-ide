@@ -8,7 +8,7 @@ const updater = useUpdaterStore()
 
 const visible = computed(() =>
   !updater.dismissed &&
-  (updater.state === 'available' || updater.state === 'downloading' || updater.state === 'ready' || updater.state === 'error')
+  (updater.state === 'available' || updater.state === 'downloading' || updater.state === 'ready' || (updater.state === 'failed' && updater.failedDuring === 'download'))
 )
 
 const progressPercent = computed(() => {
@@ -22,10 +22,7 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
-const releaseBody = computed(() => {
-  if (!updater.releaseNotes) return 'No release notes provided for this version.'
-  return updater.releaseNotes
-})
+const releaseBody = computed(() => updater.releaseNotes ?? 'See the release page on GitHub for details.')
 </script>
 
 <template>
@@ -40,7 +37,7 @@ const releaseBody = computed(() => {
       <div class="update__versions">
         <div class="update__badge">
           <span class="update__badge-label">Current</span>
-          <span class="update__badge-value">{{ updater.currentVersion ?? 'unknown' }}</span>
+          <span class="update__badge-value">{{ updater.currentVersion }}</span>
         </div>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="update__arrow">
           <path d="M5 12h14M13 5l7 7-7 7" />
@@ -68,7 +65,7 @@ const releaseBody = computed(() => {
       <div v-if="updater.state === 'ready'" class="update__ready">
         The update has been installed. Sinth IDE will restart to apply it.
       </div>
-      <div v-if="updater.state === 'error'" class="update__error">
+      <div v-if="updater.state === 'failed'" class="update__error">
         {{ updater.errorMessage ?? 'The update could not be installed.' }}
       </div>
     </div>
@@ -76,7 +73,7 @@ const releaseBody = computed(() => {
       <button v-if="updater.state === 'available'" class="btn btn--ghost" type="button" @click="updater.dismiss()">Later</button>
       <button v-if="updater.state === 'available'" class="btn btn--primary" type="button" @click="updater.downloadAndInstall()">Install and restart</button>
       <button v-if="updater.state === 'ready'" class="btn btn--primary" type="button" @click="updater.restart()">Restart now</button>
-      <button v-if="updater.state === 'error'" class="btn btn--ghost" type="button" @click="updater.dismiss()">Dismiss</button>
+      <button v-if="updater.state === 'failed'" class="btn btn--ghost" type="button" @click="updater.dismiss()">Close</button>
     </template>
   </Modal>
 </template>

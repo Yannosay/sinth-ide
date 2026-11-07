@@ -7,6 +7,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import IconButton from '@/components/ui/IconButton.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import FileIcon from '@/components/ui/FileIcon.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 
 const workspace = useWorkspaceStore()
@@ -257,15 +258,7 @@ function parentInlineDepth(parentDir: string): number | null {
               </svg>
             </span>
             <span class="tree__icon">
-              <svg v-if="row.node.isDirectory" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              </svg>
-              <svg v-else-if="row.node.name.endsWith('.sinth')" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="tree__icon-sinth">
-                <path d="M20.5 9.5c-1-1-2.5-1.5-4.5-1.5-2.5 0-4 1-4 2.75 0 1.6 1.1 2.3 3.6 2.85l2 .45c1.5.35 2.4.9 2.4 2.05 0 1.5-1.4 2.4-3.6 2.4-1.9 0-3.4-.65-4.4-1.7" />
-              </svg>
-              <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              </svg>
+              <FileIcon :name="row.node.name" :folder="row.node.isDirectory" :open="workspace.isExpanded(row.node.path)" />
             </span>
             <input
               v-if="isRenaming(row.node.path)"
@@ -331,8 +324,7 @@ function parentInlineDepth(parentDir: string): number | null {
 .tree__row--selected { background: var(--accent-soft); }
 .tree__chevron { display: inline-flex; width: 12px; height: 12px; color: var(--fg-subtle); transition: transform 80ms; }
 .tree__chevron--open { transform: rotate(90deg); }
-.tree__icon { display: inline-flex; width: 14px; height: 14px; color: var(--fg-muted); }
-.tree__icon-sinth { color: var(--accent); }
+.tree__icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
 .tree__label { flex: 1; min-width: 0; }
 .tree__inline {
   flex: 1;

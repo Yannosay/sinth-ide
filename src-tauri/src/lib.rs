@@ -3,8 +3,34 @@ mod state;
 
 use state::TerminalState;
 
+/// GUI apps on macOS and Linux start with a minimal PATH, so Node.js installed through
+/// Homebrew, nvm, fnm or Volta would not be found. Ask the login shell for the real PATH.
+#[cfg(unix)]
+fn inherit_login_shell_path() {
+    use std::process::{Command, Stdio};
+    const MARK: &str = "__SINTH_PATH__";
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let Ok(out) = Command::new(&shell)
+        .args(["-ilc", "printf '__SINTH_PATH__%s' \"$PATH\""])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+    else {
+        return;
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    if let Some(idx) = text.rfind(MARK) {
+        let path = text[idx + MARK.len()..].trim();
+        if !path.is_empty() {
+            std::env::set_var("PATH", path);
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(unix)]
+    inherit_login_shell_path();
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
@@ -34,6 +60,7 @@ pub fn run() {
             commands::compilers::uninstall_compiler,
             commands::compilers::activate_compiler,
             commands::sinth::sinth_check,
+            commands::sinth::resolve_sinth,
         ])
         .run(tauri::generate_context!())
         .expect("fatal: tauri runtime initialization failed");

@@ -22,6 +22,7 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore } from '@/stores/settings'
 import { useCompilersStore } from '@/stores/compilers'
 import { useDiagnosticsStore } from '@/stores/diagnostics'
+import { useProjectStore } from '@/stores/project'
 import { registerShortcuts } from '@/composables/useShortcutRouter'
 import { useTauriEvent } from '@/composables/useTauriEvent'
 
@@ -30,14 +31,19 @@ const workspace = useWorkspaceStore()
 const settings = useSettingsStore()
 const compilers = useCompilersStore()
 const diagnostics = useDiagnosticsStore()
+const project = useProjectStore()
 
-function recheck(path?: string): void {
-  if (workspace.rootPath && (!path || path.endsWith('.sinth'))) void diagnostics.check(workspace.rootPath)
+async function recheck(path?: string): Promise<void> {
+  const root = workspace.rootPath
+  if (!root) return
+  if (!project.isSinth && (!path || /(\.sinth|[\\/]package\.json|[\\/]sinth\.config\.json)$/.test(path))) await project.detect()
+  if (!project.isSinth) { diagnostics.clear(); return }
+  if (!path || path.endsWith('.sinth') || path.endsWith('sinth.config.json')) void diagnostics.check(root)
 }
 
 watch(() => workspace.rootPath, root => {
   diagnostics.clear()
-  if (root) recheck()
+  if (root) void recheck()
 })
 
 const activityView = ref<ActivityView>('explorer')
@@ -68,7 +74,7 @@ async function saveActive(): Promise<void> {
   try {
     await invoke('write_text_file', { path: tab.path, content: tab.content })
     editor.markSaved(tab.id, tab.content)
-    recheck(tab.path)
+    void recheck(tab.path)
   } catch (err) { console.error('[workbench]', err) }
 }
 
@@ -80,10 +86,12 @@ async function saveAll(): Promise<void> {
       editor.markSaved(tab.id, tab.content)
     } catch (err) { console.error('[workbench]', err) }
   }
-  recheck()
+  void recheck()
 }
 
-function toggleTerminal(): void { terminalVisible.value = !terminalVisible.value }
+function refitTerminal(): void { requestAnimationFrame(() => window.dispatchEvent(new Event("resize"))) }
+function toggleTerminal(): void { terminalVisible.value = !terminalVisible.value; refitTerminal() }
+function onTerminalRun(): void { if (!terminalVisible.value) { terminalVisible.value = true; refitTerminal() } }
 function newTerminal(): void {
   terminalVisible.value = true
   requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('sinth:new-terminal')))
@@ -114,11 +122,13 @@ watch(sidebarWidth, v => { settings.sidebarWidth = v })
 onMounted(() => {
   window.addEventListener('sinth:toggle-terminal', onToggleTerminalEvent)
   window.addEventListener('sinth:new-terminal', onNewTerminalEvent)
+  window.addEventListener('sinth:terminal-run', onTerminalRun)
 })
 
 onUnmounted(() => {
   window.removeEventListener('sinth:toggle-terminal', onToggleTerminalEvent)
   window.removeEventListener('sinth:new-terminal', onNewTerminalEvent)
+  window.removeEventListener('sinth:terminal-run', onTerminalRun)
 })
 </script>
 
@@ -149,7 +159,7 @@ onUnmounted(() => {
             <WelcomeScreen v-if="!workspace.rootPath && editor.tabs.length === 0" />
             <template v-else>
               <EditorPane />
-              <TerminalPane v-if="terminalVisible" v-model:height="terminalHeight" />
+              <TerminalPane v-show="terminalVisible" v-model:height="terminalHeight" />
             </template>
           </div>
         </template>

@@ -48,6 +48,8 @@ export const useDiagnosticsStore = defineStore('diagnostics', () => {
       lastError.value = null
     } catch (err) {
       lastError.value = String(err)
+      // Without Node.js or a compiler there is nothing to check; stale results would be misleading.
+      if (lastError.value === 'NO_COMPILER' || lastError.value === 'NO_NODE') items.value = []
     } finally {
       running.value = false
       revision.value++

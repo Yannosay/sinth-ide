@@ -11,18 +11,42 @@ use crate::state::{PtySession, TerminalState};
 
 #[derive(Clone, Serialize)]
 struct TerminalOutput {
+    id: u32,
     data: String,
+}
+
+#[derive(Clone, Serialize)]
+struct TerminalExit {
+    id: u32,
+}
+
+/// Decodes the complete UTF-8 prefix of `pending` and keeps a trailing partial sequence
+/// for the next read, so multi-byte characters split across reads are not garbled.
+fn take_utf8(pending: &mut Vec<u8>) -> String {
+    match std::str::from_utf8(pending) {
+        Ok(s) => {
+            let out = s.to_string();
+            pending.clear();
+            out
+        }
+        Err(e) => {
+            let valid = e.valid_up_to();
+            if e.error_len().is_none() && pending.len() - valid < 4 {
+                let out = String::from_utf8_lossy(&pending[..valid]).into_owned();
+                pending.drain(..valid);
+                out
+            } else {
+                let out = String::from_utf8_lossy(pending).into_owned();
+                pending.clear();
+                out
+            }
+        }
+    }
 }
 
 fn which(name: &str) -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path_var) {
-        let candidate = dir.join(name);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
+    std::env::split_paths(&path_var).map(|dir| dir.join(name)).find(|c| c.is_file())
 }
 
 fn home_dir() -> Option<PathBuf> {
@@ -134,17 +158,24 @@ pub async fn spawn_terminal(
     let sessions_reader = sessions.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 8192];
+        let mut pending: Vec<u8> = Vec::new();
         loop {
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
-                    let text = String::from_utf8_lossy(&buf[..n]).into_owned();
-                    let _ = app_reader.emit(&format!("terminal-output:{id}"), TerminalOutput { data: text });
+                    pending.extend_from_slice(&buf[..n]);
+                    let text = take_utf8(&mut pending);
+                    if !text.is_empty() {
+                        let _ = app_reader.emit("terminal-output", TerminalOutput { id, data: text });
+                    }
                 }
                 Err(_) => break,
             }
         }
-        let _ = app_reader.emit(&format!("terminal-exit:{id}"), ());
+        if !pending.is_empty() {
+            let _ = app_reader.emit("terminal-output", TerminalOutput { id, data: String::from_utf8_lossy(&pending).into_owned() });
+        }
+        let _ = app_reader.emit("terminal-exit", TerminalExit { id });
         if let Ok(mut map) = sessions_reader.lock() {
             map.remove(&id);
         }
@@ -156,7 +187,7 @@ pub async fn spawn_terminal(
 #[tauri::command]
 pub async fn write_terminal(state: State<'_, TerminalState>, id: u32, data: String) -> Result<(), String> {
     let sessions = state.sessions.lock().map_err(|e| format!("lock: {e}"))?;
-    let session = sessions.get(&id).ok_or_else(|| "unknown terminal".to_string())?;
+    let session = sessions.get(&id).ok_or_else(|| "TERMINAL_EXITED".to_string())?;
     let mut w = session.writer.lock().map_err(|e| format!("lock writer: {e}"))?;
     w.write_all(data.as_bytes()).map_err(|e| format!("write: {e}"))?;
     w.flush().map_err(|e| format!("flush: {e}"))?;
@@ -166,7 +197,7 @@ pub async fn write_terminal(state: State<'_, TerminalState>, id: u32, data: Stri
 #[tauri::command]
 pub async fn resize_terminal(state: State<'_, TerminalState>, id: u32, cols: u16, rows: u16) -> Result<(), String> {
     let sessions = state.sessions.lock().map_err(|e| format!("lock: {e}"))?;
-    let session = sessions.get(&id).ok_or_else(|| "unknown terminal".to_string())?;
+    let Some(session) = sessions.get(&id) else { return Ok(()) };
     session
         .master
         .resize(PtySize {
@@ -187,4 +218,24 @@ pub async fn kill_terminal(state: State<'_, TerminalState>, id: u32) -> Result<(
         }
     }
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::take_utf8;
+
+    #[test]
+    fn keeps_split_multibyte_characters() {
+        let bytes = "a➜b".as_bytes();
+        let mut pending = bytes[..2].to_vec();
+        assert_eq!(take_utf8(&mut pending), "a");
+        pending.extend_from_slice(&bytes[2..]);
+        assert_eq!(take_utf8(&mut pending), "➜b");
+        assert!(pending.is_empty());
+    }
+
+    #[test]
+    fn replaces_invalid_bytes() {
+        let mut pending = vec![b'x', 0xff, b'y'];
+        assert_eq!(take_utf8(&mut pending), "x�y");
+    }
 }

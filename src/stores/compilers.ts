@@ -89,6 +89,15 @@ export const useCompilersStore = defineStore('compilers', () => {
     catch (err) { lastError.value = String(err); throw err }
   }
 
+  /** Installs the newest stable release from npm and returns its version. */
+  async function installLatest(): Promise<string> {
+    await refreshAvailable(true)
+    const latest = available.value.find(v => !v.deprecated && !v.version.includes('-'))
+    if (!latest) throw new Error(lastError.value ?? 'No Sinth release found on npm')
+    await install(latest.version)
+    return latest.version
+  }
+
   async function uninstall(version: string): Promise<void> {
     lastError.value = null
     try { await invoke('uninstall_compiler', { version }); await refreshInstalled() }
@@ -108,6 +117,6 @@ export const useCompilersStore = defineStore('compilers', () => {
     available, installed, activeVersion, loadingAvailable, loadingInstalled,
     progress, lastError, nodeAvailable, nodeVersion, nodePath, hasAny,
     bootstrap, checkNode, refreshAvailable, refreshInstalled,
-    install, uninstall, activate, applyProgress, clearProgress
+    install, installLatest, uninstall, activate, applyProgress, clearProgress
   }
 })

@@ -32,7 +32,7 @@ async function createStarter(): Promise<void> {
   if (typeof picked !== 'string') return
   const sep = picked.includes('\\') ? '\\' : '/'
   const starterPath = `${picked.replace(/[\\/]$/, '')}${sep}pages${sep}index.sinth`
-  const content = 'page\n\ntitle = "Hello Sinth"\n\nvar str name = "World"\n\nMain {\n  Heading(level: 1) { "Hello, " + name + "!" }\n  Input(model: name, placeholder: "Your name")\n  Paragraph { "Run sinth dev in the terminal to preview this page." }\n}\n'
+  const content = 'title = "Hello Sinth"\n\nvar str name = "World"\n\nMain {\n  Heading(level: 1) { "Hello, " + name + "!" }\n  Input(model: name, placeholder: "Your name")\n  Paragraph { "Press Run in the toolbar to preview this page." }\n}\n'
   try {
     await invoke('create_file', { path: starterPath, content })
     await workspace.openFolder(picked)

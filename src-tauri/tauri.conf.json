@@ -33,7 +33,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,8 +43,8 @@
     ],
     "copyright": "Copyright (c) 2026 Yannosay Productions",
     "category": "DeveloperTool",
-    "shortDescription": "Professional Sinth language IDE.",
-    "longDescription": "Sinth IDE is a desktop environment for the Sinth language: Monaco editor with Sinth-aware completions and hover documentation, a real terminal backed by the OS shell, multi-version compiler management sourced from the public npm registry, and in-place auto-updates.",
+    "shortDescription": "The desktop IDE for the Sinth language.",
+    "longDescription": "Sinth IDE is a desktop editor for Sinth projects: Monaco with Sinth completions, hover docs and inline compiler diagnostics, one-click run, build, preview and deploy, an integrated terminal, managed compiler versions from npm, and signed automatic updates.",
     "windows": {
       "wix": {
         "language": "en-US"
@@ -66,7 +66,7 @@
     "updater": {
       "active": true,
       "dialog": false,
-      "pubkey": "__UPDATER_PUBKEY__",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEREOEY0REZGQjEwN0U5NkUKUldSdTZRZXgvMDJQM1I0MkRyMTNxdmN6ZmNYYlNnUFd4YnN1SFdFaGJlTkJDbUJ3V3NIYmhHcE8K",
       "endpoints": [
         "https://github.com/Yannosay/sinth-ide/releases/latest/download/latest.json"
       ],

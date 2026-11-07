@@ -24,7 +24,7 @@ onMounted(async () => {
   await settings.load()
   applyTheme()
   void compilers.bootstrap()
-  void updater.checkOnStartup()
+  updater.checkOnStartup()
 })
 
 watch(() => settings.theme, applyTheme)
