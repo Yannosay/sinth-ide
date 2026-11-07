@@ -55,7 +55,7 @@ export const SINTH_UI_COMPONENTS: Readonly<Record<string, string>> = {
 export const SINTH_TYPES: readonly string[] = ['str', 'num', 'bool', 'obj', 'ui', 'any', 'void', 'fn', 'int']
 
 export const SINTH_KEYWORDS: readonly string[] = [
-  'page', 'import', 'from', 'as', 'extern', 'export', 'private', 'component', 'function', 'async', 'await', 'var', 'const',
+  'import', 'from', 'as', 'extern', 'export', 'private', 'component', 'function', 'async', 'await', 'var', 'const',
   'computed', 'persist', 'bind', 'if', 'elif', 'else', 'for', 'in', 'key', 'while', 'return', 'break', 'continue', 'watch',
   'onMount', 'onDestroy', 'style', 'script', 'global', 'lang', 'and', 'or', 'not', 'new', 'typeof', 'custom-element',
 ]

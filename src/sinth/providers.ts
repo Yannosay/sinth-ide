@@ -5,7 +5,6 @@ import {
 } from './constants'
 
 const KEYWORD_DOCS: Readonly<Record<string, string>> = {
-  page: 'Marks the file as a page. Pages become HTML files; everything else is a component module.',
   var: 'Reactive variable: `var num count = 0`. Changing it updates the UI.',
   const: 'Constant value: `const str API = "https://..."`.',
   computed: 'Derived value that recalculates automatically: `computed num total = price * qty`.',
