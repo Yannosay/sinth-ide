@@ -33,7 +33,7 @@ Prerequisites: Rust (stable), Node.js 20+, pnpm, and the [Tauri system dependenc
 
 ### Releases
 
-Push a tag like `v1.0.1` and the Release workflow builds installers for Windows, macOS and Linux, signs the update bundles and publishes `latest.json`, which installed apps check on startup. The workflow needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` first.
+Push a tag like `v0.0.2` and the Release workflow builds installers for Windows, macOS and Linux, signs the update bundles and publishes `latest.json`, which installed apps check on startup. The workflow needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` first.
 
 ## Credits
 

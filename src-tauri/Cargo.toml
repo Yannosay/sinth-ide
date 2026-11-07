@@ -1,6 +1,6 @@
 [package]
 name = "sinth-ide"
-version = "1.0.0"
+version = "0.0.1"
 description = "Professional desktop IDE for the Sinth language."
 authors = ["Yannosay Productions"]
 edition = "2021"

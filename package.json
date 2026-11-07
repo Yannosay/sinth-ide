@@ -1,7 +1,7 @@
 {
   "name": "sinth-ide",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Professional desktop IDE for the Sinth language.",
   "author": "Yannosay Productions",
