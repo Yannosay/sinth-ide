@@ -2,6 +2,8 @@
 
 The desktop editor for [Sinth](https://github.com/Yannosay/sinth) projects, built with Tauri, Vue and Monaco.
 
+> Sinth IDE is in early development (0.0.x). Features may change between versions, and installed copies update themselves.
+
 ## Features
 
 - **Open any folder and press Run.** The toolbar detects Sinth projects (a `sinth.config.json`, the `@yannosay/sinth` dependency, or just a `.sinth` file) and offers Run, Build, Preview, Check and Deploy. Commands run in the integrated terminal with the right compiler and `--root`, so they work from any directory.
@@ -15,7 +17,9 @@ The desktop editor for [Sinth](https://github.com/Yannosay/sinth) projects, buil
 
 ## Install
 
-Download the installer for your platform from [Releases](https://github.com/Yannosay/sinth-ide/releases): `.msi` or `-setup.exe` for Windows, `.dmg` for macOS, `.AppImage` or `.deb` for Linux.
+Download the installer for your platform from [Releases](https://github.com/Yannosay/sinth-ide/releases): `.msi` or `-setup.exe` for Windows, `.dmg` (Apple Silicon and Intel) for macOS, `.AppImage`, `.deb` or `.rpm` for Linux.
+
+The macOS app is not notarized yet. The first time, right-click Sinth IDE in Applications and choose **Open**. On Windows, SmartScreen may ask you to confirm with **More info → Run anyway**.
 
 Requires [Node.js](https://nodejs.org) 18 or newer for the Sinth compiler. On macOS and Linux the IDE reads your login shell's `PATH`, so Node from Homebrew, nvm, fnm or Volta is found.
 
@@ -23,17 +27,14 @@ Requires [Node.js](https://nodejs.org) 18 or newer for the Sinth compiler. On ma
 
 ```bash
 pnpm install
-pnpm tauri dev      # run the app
-pnpm build          # type-check and build the frontend
-pnpm tauri build    # create installers (needs the signing key, see below)
-cd src-tauri && cargo test
+pnpm tauri dev                 # run the app with hot reload
+pnpm build                     # type-check and build the frontend
+cd src-tauri && cargo test     # backend tests
 ```
 
 Prerequisites: Rust (stable), Node.js 20+, pnpm, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/).
 
-### Releases
-
-Push a tag like `v0.0.2` and the Release workflow builds installers for Windows, macOS and Linux, signs the update bundles and publishes `latest.json`, which installed apps check on startup. The workflow needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` first.
+Installers are built by the Release workflow when a version tag (for example `v0.0.2`) is pushed. It signs every update bundle, so installed copies only accept updates published from this repository.
 
 ## Credits
 
