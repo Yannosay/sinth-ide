@@ -26,8 +26,8 @@ async function close(): Promise<void> { await getCurrentWindow().close() }
 </script>
 
 <template>
-  <header class="titlebar">
-    <div class="titlebar__left">
+  <header class="titlebar" data-tauri-drag-region>
+    <div class="titlebar__left" data-tauri-drag-region>
       <div class="titlebar__brand" data-tauri-drag-region>
         <BrandMark :size="18" label="IDE" />
       </div>
@@ -40,8 +40,8 @@ async function close(): Promise<void> { await getCurrentWindow().close() }
         <kbd>Ctrl+,</kbd>
       </button>
     </div>
-    <div class="titlebar__center truncate">{{ title }}</div>
-    <div class="titlebar__right">
+    <div class="titlebar__center truncate" data-tauri-drag-region>{{ title }}</div>
+    <div class="titlebar__right" data-tauri-drag-region>
       <IconButton title="Minimize" @click="minimize"><svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg></IconButton>
       <IconButton title="Maximize" @click="toggleMaximize"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5" /></svg></IconButton>
       <IconButton title="Close" variant="danger" @click="close"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg></IconButton>
@@ -53,6 +53,7 @@ async function close(): Promise<void> { await getCurrentWindow().close() }
 .titlebar { display: flex; align-items: center; height: 36px; background: var(--bg-1); border-bottom: 1px solid var(--border); padding: 0 8px; gap: 8px; user-select: none; flex-shrink: 0; }
 .titlebar__left, .titlebar__right { display: flex; align-items: center; gap: 6px; }
 .titlebar__brand { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 4px; }
+.titlebar__brand > * { pointer-events: none; }
 .titlebar__menu-item { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: var(--radius-sm); color: var(--fg-muted); font-size: 12px; transition: background 80ms, color 80ms; }
 .titlebar__menu-item:hover { background: var(--bg-3); color: var(--fg); }
 .titlebar__menu-item kbd { font-family: var(--font-mono); font-size: 10px; color: var(--fg-subtle); background: var(--bg-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; }

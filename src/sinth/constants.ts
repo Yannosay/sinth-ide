@@ -56,7 +56,7 @@ export const SINTH_TYPES: readonly string[] = ['str', 'num', 'bool', 'obj', 'ui'
 
 export const SINTH_KEYWORDS: readonly string[] = [
   'import', 'from', 'as', 'extern', 'export', 'private', 'component', 'function', 'async', 'await', 'var', 'const',
-  'computed', 'persist', 'bind', 'if', 'elif', 'else', 'for', 'in', 'key', 'while', 'return', 'break', 'continue', 'watch',
+  'computed', 'persist', 'bind', 'if', 'elif', 'else', 'for', 'in', 'key', 'while', 'try', 'catch', 'finally', 'throw', 'return', 'break', 'continue', 'watch',
   'onMount', 'onDestroy', 'style', 'script', 'global', 'lang', 'and', 'or', 'not', 'new', 'typeof', 'custom-element',
 ]
 
@@ -71,6 +71,7 @@ export const SINTH_META_KEYS: Readonly<Record<string, string>> = {
   themeColor: 'Browser theme color', canonical: 'Canonical URL', ogImage: 'Social preview image',
   bodyClass: 'Class added to <body>', viewport: 'Viewport meta, has a sensible default',
   paths: 'Dynamic routes only (pages/blog/[slug].sinth): the values to generate, e.g. paths = posts.map((p) => p.slug)',
+  jsonLd: 'Structured data for search engines (schema.org), e.g. jsonLd = { "@context": "https://schema.org", "@type": "Article", headline: title }',
 }
 
 export const SINTH_DIRECTIVES: Readonly<Record<string, string>> = {

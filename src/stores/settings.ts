@@ -17,6 +17,7 @@ export interface SettingsSnapshot {
   editorBracketPairColorization: boolean
   terminalFontSize: number
   terminalShell: string
+  openBrowserOnRun: boolean
   autoCheckUpdates: boolean
   activityBarVisible: boolean
   statusBarVisible: boolean
@@ -38,6 +39,7 @@ const DEFAULTS: SettingsSnapshot = {
   editorBracketPairColorization: true,
   terminalFontSize: 13,
   terminalShell: '',
+  openBrowserOnRun: true,
   autoCheckUpdates: true,
   activityBarVisible: true,
   statusBarVisible: true,
@@ -59,6 +61,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorBracketPairColorization = ref(DEFAULTS.editorBracketPairColorization)
   const terminalFontSize = ref(DEFAULTS.terminalFontSize)
   const terminalShell = ref(DEFAULTS.terminalShell)
+  const openBrowserOnRun = ref(DEFAULTS.openBrowserOnRun)
   const autoCheckUpdates = ref(DEFAULTS.autoCheckUpdates)
   const activityBarVisible = ref(DEFAULTS.activityBarVisible)
   const statusBarVisible = ref(DEFAULTS.statusBarVisible)
@@ -82,6 +85,7 @@ export const useSettingsStore = defineStore('settings', () => {
       editorBracketPairColorization: editorBracketPairColorization.value,
       terminalFontSize: terminalFontSize.value,
       terminalShell: terminalShell.value,
+      openBrowserOnRun: openBrowserOnRun.value,
       autoCheckUpdates: autoCheckUpdates.value,
       activityBarVisible: activityBarVisible.value,
       statusBarVisible: statusBarVisible.value,
@@ -108,6 +112,7 @@ export const useSettingsStore = defineStore('settings', () => {
       if (typeof p.editorBracketPairColorization === 'boolean') editorBracketPairColorization.value = p.editorBracketPairColorization
       if (typeof p.terminalFontSize === 'number') terminalFontSize.value = p.terminalFontSize
       if (typeof p.terminalShell === 'string') terminalShell.value = p.terminalShell
+      if (typeof p.openBrowserOnRun === 'boolean') openBrowserOnRun.value = p.openBrowserOnRun
       if (typeof p.autoCheckUpdates === 'boolean') autoCheckUpdates.value = p.autoCheckUpdates
       if (typeof p.activityBarVisible === 'boolean') activityBarVisible.value = p.activityBarVisible
       if (typeof p.statusBarVisible === 'boolean') statusBarVisible.value = p.statusBarVisible
@@ -134,6 +139,7 @@ export const useSettingsStore = defineStore('settings', () => {
     editorBracketPairColorization.value = DEFAULTS.editorBracketPairColorization
     terminalFontSize.value = DEFAULTS.terminalFontSize
     terminalShell.value = DEFAULTS.terminalShell
+    openBrowserOnRun.value = DEFAULTS.openBrowserOnRun
     autoCheckUpdates.value = DEFAULTS.autoCheckUpdates
     activityBarVisible.value = DEFAULTS.activityBarVisible
     statusBarVisible.value = DEFAULTS.statusBarVisible
@@ -160,7 +166,7 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     theme, editorFontSize, editorFontFamily, editorTabSize, editorWordWrap,
     editorMinimap, editorLineNumbers, editorRenderWhitespace, editorBracketPairColorization,
-    terminalFontSize, terminalShell, autoCheckUpdates,
+    terminalFontSize, terminalShell, openBrowserOnRun, autoCheckUpdates,
     activityBarVisible, statusBarVisible, sidebarWidth, terminalHeight,
     recentFolders, recentFiles,
     load, reset, pushRecentFolder, pushRecentFile

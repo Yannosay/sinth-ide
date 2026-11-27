@@ -3,10 +3,16 @@ import { computed, watch } from 'vue'
 import { open as openUrl } from '@tauri-apps/plugin-shell'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useProjectStore, type ProjectAction } from '@/stores/project'
+import { useSettingsStore } from '@/stores/settings'
+import { useTasksStore } from '@/stores/tasks'
 import IconButton from '@/components/ui/IconButton.vue'
 
 const workspace = useWorkspaceStore()
 const project = useProjectStore()
+const settings = useSettingsStore()
+const tasks = useTasksStore()
+
+const SERVER_KINDS = new Set(['run', 'preview'])
 
 const compilerNote = computed(() => {
   const c = project.compiler
@@ -18,8 +24,33 @@ const compilerNote = computed(() => {
 })
 
 function run(action: ProjectAction): void {
-  window.dispatchEvent(new CustomEvent('sinth:terminal-run', { detail: { command: project.commandLine(action), title: action.label } }))
+  if (tasks.byAction(action.id)) {
+    if (SERVER_KINDS.has(action.kind)) window.dispatchEvent(new CustomEvent('sinth:task-stop', { detail: { actionId: action.id } }))
+    return
+  }
+  window.dispatchEvent(new CustomEvent('sinth:terminal-run'))
+  window.dispatchEvent(new CustomEvent('sinth:task-run', {
+    detail: {
+      actionId: action.id,
+      title: action.label,
+      command: project.commandLine(action),
+      openBrowser: settings.openBrowserOnRun && SERVER_KINDS.has(action.kind),
+    },
+  }))
 }
+
+function label(action: ProjectAction): string {
+  if (!tasks.byAction(action.id)) return action.label
+  if (SERVER_KINDS.has(action.kind)) return 'Stop'
+  return action.label + '…'
+}
+
+function hint(action: ProjectAction): string {
+  if (!tasks.byAction(action.id)) return project.commandLine(action)
+  return SERVER_KINDS.has(action.kind) ? `Stop ${action.label.toLowerCase()}` : `${action.label} is running`
+}
+
+const serverUrl = computed(() => tasks.running.find(t => t.url)?.url ?? null)
 
 function stop(): void {
   window.dispatchEvent(new CustomEvent('sinth:terminal-interrupt'))
@@ -50,17 +81,23 @@ watch(() => workspace.rootPath, () => { void project.detect() }, { immediate: tr
           :key="action.id"
           type="button"
           class="toolbar__action"
-          :class="{ 'toolbar__action--primary': action.kind === 'run' }"
-          :title="project.commandLine(action)"
+          :class="{ 'toolbar__action--primary': action.kind === 'run', 'toolbar__action--running': !!tasks.byAction(action.id) }"
+          :title="hint(action)"
+          :disabled="!!tasks.byAction(action.id) && !SERVER_KINDS.has(action.kind)"
           @click="run(action)"
         >
-          <svg v-if="action.kind === 'run'" viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+          <svg v-if="tasks.byAction(action.id) && SERVER_KINDS.has(action.kind)" viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+          <span v-else-if="tasks.byAction(action.id)" class="toolbar__spinner" aria-hidden="true" />
+          <svg v-else-if="action.kind === 'run'" viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg>
           <svg v-else-if="action.kind === 'build'" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></svg>
           <svg v-else-if="action.kind === 'preview'" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
           <svg v-else-if="action.kind === 'check' || action.kind === 'test'" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
           <svg v-else-if="action.kind === 'deploy'" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
           <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14" /></svg>
-          <span>{{ action.label }}</span>
+          <span>{{ label(action) }}</span>
+        </button>
+        <button v-if="serverUrl" class="toolbar__link" type="button" :title="`Open ${serverUrl} in your browser`" @click="openUrl(serverUrl)">
+          {{ serverUrl.replace(/^https?:\/\//, '') }} ↗
         </button>
         <span v-if="workspace.rootPath && !project.detecting && project.actions.length === 0" class="toolbar__note">
           Add a .sinth file to run this folder with Sinth
@@ -90,6 +127,11 @@ watch(() => workspace.rootPath, () => { void project.detect() }, { immediate: tr
 .toolbar__action:hover { background: var(--bg-3); color: var(--fg); }
 .toolbar__action--primary { color: var(--fg); }
 .toolbar__action--primary svg { color: var(--success); }
+.toolbar__action--running { color: var(--fg); background: var(--bg-3); }
+.toolbar__action--running svg { color: var(--danger, #ef4444); }
+.toolbar__action:disabled { cursor: default; }
+.toolbar__spinner { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid currentColor; border-right-color: transparent; animation: toolbar-spin 0.8s linear infinite; }
+@keyframes toolbar-spin { to { transform: rotate(360deg); } }
 .toolbar__note { font-size: 12px; color: var(--fg-subtle); padding: 0 8px; white-space: nowrap; }
 .toolbar__link { font-size: 12px; color: var(--accent); padding: 0 6px; height: 24px; border-radius: var(--radius-sm); white-space: nowrap; }
 .toolbar__link:hover { background: var(--bg-3); }

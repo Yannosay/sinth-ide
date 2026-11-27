@@ -6,10 +6,12 @@ import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { open as openExternal } from '@tauri-apps/plugin-shell'
 import '@xterm/xterm/css/xterm.css'
 import { useTerminalStore } from '@/stores/terminal'
 import { useSettingsStore } from '@/stores/settings'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useTasksStore } from '@/stores/tasks'
 import IconButton from '@/components/ui/IconButton.vue'
 
 const height = defineModel<number>('height', { required: true })
@@ -17,6 +19,18 @@ const height = defineModel<number>('height', { required: true })
 const store = useTerminalStore()
 const settings = useSettingsStore()
 const workspace = useWorkspaceStore()
+const tasks = useTasksStore()
+
+/** A project action that runs in its own terminal and exits when done. */
+export interface TaskRequest {
+  actionId: string
+  title: string
+  command: string
+  openBrowser: boolean
+}
+
+const ANSI = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g
+const SERVER_URL = /(?:Local|Preview):\s+(https?:\/\/[^\s]+)/
 
 interface Runtime {
   id: number
@@ -27,6 +41,9 @@ interface Runtime {
   unlisten: UnlistenFn | null
   cwd: string
   userInteracted: boolean
+  task: TaskRequest | null
+  /** Recent plain-text output of a task, scanned for the server address. */
+  tail: string
 }
 
 const runtimes = ref<Runtime[]>([])
@@ -47,7 +64,7 @@ function createNode(id: number): HTMLDivElement {
   return el
 }
 
-async function spawnTerminal(cwdOverride?: string): Promise<number | null> {
+async function spawnTerminal(cwdOverride?: string, task: TaskRequest | null = null): Promise<number | null> {
   if (!hostRef.value) return null
 
   const cwd = cwdOverride ?? workspace.rootPath ?? ''
@@ -57,7 +74,7 @@ async function spawnTerminal(cwdOverride?: string): Promise<number | null> {
 
   let id: number
   try {
-    id = await invoke<number>('spawn_terminal', { cwd, shell, cols, rows })
+    id = await invoke<number>('spawn_terminal', { cwd, shell, cols, rows, command: task?.command ?? null })
   } catch (err) {
     console.error('[terminal] spawn failed:', err)
     return null
@@ -89,7 +106,9 @@ async function spawnTerminal(cwdOverride?: string): Promise<number | null> {
   const search = new SearchAddon()
   term.loadAddon(fit)
   term.loadAddon(search)
-  term.loadAddon(new WebLinksAddon())
+  term.loadAddon(new WebLinksAddon((event, uri) => {
+    if (event.ctrlKey || event.metaKey) void openExternal(uri).catch(err => console.error('[terminal] open link failed:', err))
+  }))
 
   term.open(container)
   await nextTick()
@@ -107,11 +126,12 @@ async function spawnTerminal(cwdOverride?: string): Promise<number | null> {
 
   term.onResize(({ cols: c, rows: r }) => { void invoke('resize_terminal', { id, cols: c, rows: r }).catch(() => undefined) })
 
-  runtimes.value.push({ id, term, fit, search, container, unlisten: null, cwd, userInteracted: false })
-  for (const chunk of pendingOutput.get(id) ?? []) term.write(chunk)
+  runtimes.value.push({ id, term, fit, search, container, unlisten: null, cwd, userInteracted: !!task, task, tail: '' })
+  if (task) tasks.start(task.actionId, id)
+  for (const chunk of pendingOutput.get(id) ?? []) writeOutput(id, chunk)
   pendingOutput.delete(id)
 
-  const title = cwd ? `Shell — ${cwd.split(/[\\/]/).pop() || cwd}` : `Shell ${store.instances.length + 1}`
+  const title = task ? task.title : cwd ? `Shell — ${cwd.split(/[\\/]/).pop() || cwd}` : `Shell ${store.instances.length + 1}`
   store.register({ id, title, cwd, alive: true })
   if (exited.has(id)) onExit(id)
   setActive(id)
@@ -130,6 +150,7 @@ function setActive(id: number): void {
 
 async function closeTerminal(id: number): Promise<void> {
   try { await invoke('kill_terminal', { id }) } catch { void 0 }
+  tasks.finish(id)
   const rt = runtimes.value.find(r => r.id === id)
   if (rt) {
     rt.unlisten?.()
@@ -146,8 +167,45 @@ async function restartTerminal(id: number): Promise<void> {
   const rt = runtimes.value.find(r => r.id === id)
   if (!rt) return
   const cwd = rt.cwd || workspace.rootPath || ''
+  const task = rt.task
   await closeTerminal(id)
-  await spawnTerminal(cwd)
+  await spawnTerminal(cwd, task)
+}
+
+/** Writes output and, for Run and Preview tasks, opens the server address once it is printed. */
+function writeOutput(id: number, data: string): void {
+  const rt = runtimes.value.find(r => r.id === id)
+  if (!rt) return
+  rt.term.write(data)
+  const running = tasks.byTerminal(id)
+  if (!rt.task || !running || running.url) return
+  rt.tail = (rt.tail + data.replace(ANSI, '')).slice(-2048)
+  const match = rt.tail.match(SERVER_URL)
+  if (!match) return
+  running.url = match[1]
+  if (rt.task.openBrowser) void openExternal(match[1]).catch(err => console.error('[terminal] open browser failed:', err))
+}
+
+async function runTask(task: TaskRequest): Promise<void> {
+  const running = tasks.byAction(task.actionId)
+  if (running && isAlive(running.terminalId)) {
+    setActive(running.terminalId)
+    return
+  }
+  const stale = runtimes.value.find(r => r.task?.actionId === task.actionId)
+  if (stale) await closeTerminal(stale.id)
+  await spawnTerminal(workspace.rootPath ?? undefined, task)
+}
+
+/** Stops a task with Ctrl+C so the server shuts down cleanly, then force-kills it if it is still running. */
+async function stopTask(actionId: string): Promise<void> {
+  const running = tasks.byAction(actionId)
+  if (!running) return
+  const id = running.terminalId
+  try { await invoke('write_terminal', { id, data: '\x03' }) } catch { void 0 }
+  setTimeout(() => {
+    if (tasks.byTerminal(id)) void invoke('kill_terminal', { id }).catch(() => undefined).finally(() => { if (tasks.byTerminal(id)) onExit(id) })
+  }, 1500)
 }
 
 function onResize(): void {
@@ -192,9 +250,12 @@ async function runCommandInActive(command: string): Promise<void> {
 }
 
 function onExit(id: number): void {
+  if (!isAlive(id) && !tasks.byTerminal(id)) return
   store.markDead(id)
+  tasks.finish(id)
   const rt = runtimes.value.find(r => r.id === id)
-  rt?.term.write('\r\n\x1b[2m[process exited, press Enter to restart]\x1b[0m\r\n')
+  const what = rt?.task ? 'task finished, press Enter to run it again' : 'process exited, press Enter to restart'
+  rt?.term.write(`\r\n\x1b[2m[${what}]\x1b[0m\r\n`)
 }
 
 async function interruptActive(): Promise<void> {
@@ -226,11 +287,20 @@ function onNewTerminalEvent(): void {
   void newTerminal()
 }
 
+function onTaskRunEvent(e: Event): void {
+  const detail = (e as CustomEvent<TaskRequest>).detail
+  if (detail?.command) void runTask(detail)
+}
+
+function onTaskStopEvent(e: Event): void {
+  const detail = (e as CustomEvent<{ actionId: string }>).detail
+  if (detail?.actionId) void stopTask(detail.actionId)
+}
+
 onMounted(async () => {
   globalUnlisten = await Promise.all([
     listen<{ id: number; data: string }>('terminal-output', ev => {
-      const rt = runtimes.value.find(r => r.id === ev.payload.id)
-      if (rt) rt.term.write(ev.payload.data)
+      if (runtimes.value.some(r => r.id === ev.payload.id)) writeOutput(ev.payload.id, ev.payload.data)
       else pendingOutput.set(ev.payload.id, [...(pendingOutput.get(ev.payload.id) ?? []), ev.payload.data])
     }),
     listen<{ id: number }>('terminal-exit', ev => {
@@ -250,6 +320,8 @@ onMounted(async () => {
   window.addEventListener('sinth:terminal-run', onRunEvent)
   window.addEventListener('sinth:terminal-interrupt', onInterruptEvent)
   window.addEventListener('sinth:terminal-clear', onClearEvent)
+  window.addEventListener('sinth:task-run', onTaskRunEvent)
+  window.addEventListener('sinth:task-stop', onTaskStopEvent)
 
   await spawnTerminal(workspace.rootPath ?? undefined)
 })
@@ -263,6 +335,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('sinth:terminal-run', onRunEvent)
   window.removeEventListener('sinth:terminal-interrupt', onInterruptEvent)
   window.removeEventListener('sinth:terminal-clear', onClearEvent)
+  window.removeEventListener('sinth:task-run', onTaskRunEvent)
+  window.removeEventListener('sinth:task-stop', onTaskStopEvent)
   for (const rt of runtimes.value) {
     rt.unlisten?.()
     rt.term.dispose()

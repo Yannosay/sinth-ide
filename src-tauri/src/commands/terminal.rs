@@ -59,25 +59,47 @@ fn home_dir() -> Option<PathBuf> {
     }
 }
 
-fn resolve_shell(preferred: Option<String>) -> (String, Vec<String>) {
+fn resolve_shell(preferred: Option<String>) -> String {
     if let Some(s) = preferred {
         if !s.trim().is_empty() {
-            return (s, Vec::new());
+            return s;
         }
     }
     if cfg!(windows) {
-        if let Some(p) = which("pwsh.exe") {
-            return (p.to_string_lossy().into_owned(), vec!["-NoLogo".to_string()]);
+        if let Some(p) = which("pwsh.exe").or_else(|| which("powershell.exe")) {
+            return p.to_string_lossy().into_owned();
         }
-        if let Some(p) = which("powershell.exe") {
-            return (p.to_string_lossy().into_owned(), vec!["-NoLogo".to_string()]);
-        }
-        let comspec = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-        (comspec, Vec::new())
+        std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
     } else {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
-        (shell, vec!["-l".to_string()])
+        std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string())
     }
+}
+
+/// Arguments that start `shell` interactively, or make it run `command` and exit.
+fn shell_args(shell: &str, command: Option<&str>) -> Vec<String> {
+    let name = std::path::Path::new(shell)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let mut args: Vec<String> = Vec::new();
+    if name.contains("pwsh") || name.contains("powershell") {
+        args.push("-NoLogo".into());
+        if let Some(c) = command {
+            args.push("-Command".into());
+            args.push(c.into());
+        }
+    } else if name == "cmd" {
+        if let Some(c) = command {
+            args.extend(["/d".into(), "/s".into(), "/c".into(), c.into()]);
+        }
+    } else {
+        args.push("-l".into());
+        if let Some(c) = command {
+            args.push("-c".into());
+            args.push(c.into());
+        }
+    }
+    args
 }
 
 fn resolve_cwd(preferred: &str) -> String {
@@ -105,6 +127,7 @@ pub async fn spawn_terminal(
     shell: Option<String>,
     cols: u16,
     rows: u16,
+    command: Option<String>,
 ) -> Result<u32, String> {
     let id = state.next_id.fetch_add(1, Ordering::SeqCst);
     let pty_system = native_pty_system();
@@ -117,11 +140,11 @@ pub async fn spawn_terminal(
         })
         .map_err(|e| format!("openpty: {e}"))?;
 
-    let (shell_bin, shell_args) = resolve_shell(shell);
+    let shell_bin = resolve_shell(shell);
     let resolved_cwd = resolve_cwd(&cwd);
 
     let mut cmd = CommandBuilder::new(&shell_bin);
-    for a in &shell_args {
+    for a in shell_args(&shell_bin, command.as_deref().filter(|c| !c.trim().is_empty())) {
         cmd.arg(a);
     }
     cmd.cwd(&resolved_cwd);
@@ -221,7 +244,15 @@ pub async fn kill_terminal(state: State<'_, TerminalState>, id: u32) -> Result<(
 }
 #[cfg(test)]
 mod tests {
-    use super::take_utf8;
+    use super::{shell_args, take_utf8};
+
+    #[test]
+    fn runs_commands_through_each_shell() {
+        assert_eq!(shell_args("C:/Program Files/PowerShell/7/pwsh.exe", Some("sinth dev")), vec!["-NoLogo", "-Command", "sinth dev"]);
+        assert_eq!(shell_args("C:/Windows/System32/cmd.exe", Some("sinth dev")), vec!["/d", "/s", "/c", "sinth dev"]);
+        assert_eq!(shell_args("/bin/zsh", Some("sinth dev")), vec!["-l", "-c", "sinth dev"]);
+        assert_eq!(shell_args("/bin/bash", None), vec!["-l"]);
+    }
 
     #[test]
     fn keeps_split_multibyte_characters() {

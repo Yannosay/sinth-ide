@@ -79,6 +79,7 @@ function onThemeUpdate(v: string): void {
         <FormRow label="Shell" hint="Empty uses the OS default">
           <input v-model="settings.terminalShell" type="text" class="input" placeholder="powershell.exe">
         </FormRow>
+        <FormRow label="Open browser on Run" hint="Opens the dev server in your default browser"><Toggle v-model="settings.openBrowserOnRun" /></FormRow>
       </section>
       <section class="group">
         <h3 class="group__title">Updates</h3>
