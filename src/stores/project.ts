@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useWorkspaceStore, type FileNode } from './workspace'
 import { useSettingsStore } from './settings'
+import { useTasksStore } from './tasks'
 
 export type ActionKind = 'run' | 'build' | 'preview' | 'check' | 'deploy' | 'test' | 'clean'
 
@@ -38,6 +39,11 @@ async function readText(path: string): Promise<string | null> {
 
 async function listDir(path: string): Promise<FileNode[]> {
   try { return await invoke<FileNode[]>('read_directory', { path }) } catch { return [] }
+}
+
+/** Actions that start a long-running local server, shown as Stop while they run. */
+export function isServer(action: ProjectAction): boolean {
+  return action.kind === 'run' || action.kind === 'preview'
 }
 
 /** Quotes one argument for the shell the integrated terminal runs. */
@@ -132,5 +138,29 @@ export const useProjectStore = defineStore('project', () => {
     return cd + [action.program, ...action.args].map(q).join(' ')
   }
 
-  return { kind, actions, compiler, detecting, isSinth, nodeMissing, detect, refreshCompiler, commandLine }
+  /**
+   * Starts an action in its own terminal tab. A running server (Run, Preview) is stopped instead;
+   * other running actions are not started twice.
+   */
+  function runAction(action: ProjectAction): void {
+    const tasks = useTasksStore()
+    if (tasks.byAction(action.id)) {
+      if (isServer(action)) window.dispatchEvent(new CustomEvent('sinth:task-stop', { detail: { actionId: action.id } }))
+      return
+    }
+    window.dispatchEvent(new CustomEvent('sinth:terminal-run'))
+    window.dispatchEvent(new CustomEvent('sinth:task-run', {
+      detail: {
+        actionId: action.id,
+        title: action.label,
+        command: commandLine(action),
+        openBrowser: settings.openBrowserOnRun && isServer(action),
+      },
+    }))
+  }
+
+  /** Installs the Sinth agent skill for the project (`sinth skill`). Needs Sinth 5.3.4 or newer. */
+  const skillAction: ProjectAction = { id: 'skill', label: 'Install AI agent skill', kind: 'build', program: 'sinth', args: ['skill'] }
+
+  return { kind, actions, compiler, detecting, isSinth, nodeMissing, detect, refreshCompiler, commandLine, runAction, skillAction }
 })

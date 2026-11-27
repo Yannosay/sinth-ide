@@ -2,17 +2,13 @@
 import { computed, watch } from 'vue'
 import { open as openUrl } from '@tauri-apps/plugin-shell'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { useProjectStore, type ProjectAction } from '@/stores/project'
-import { useSettingsStore } from '@/stores/settings'
+import { isServer, useProjectStore, type ProjectAction } from '@/stores/project'
 import { useTasksStore } from '@/stores/tasks'
 import IconButton from '@/components/ui/IconButton.vue'
 
 const workspace = useWorkspaceStore()
 const project = useProjectStore()
-const settings = useSettingsStore()
 const tasks = useTasksStore()
-
-const SERVER_KINDS = new Set(['run', 'preview'])
 
 const compilerNote = computed(() => {
   const c = project.compiler
@@ -24,30 +20,18 @@ const compilerNote = computed(() => {
 })
 
 function run(action: ProjectAction): void {
-  if (tasks.byAction(action.id)) {
-    if (SERVER_KINDS.has(action.kind)) window.dispatchEvent(new CustomEvent('sinth:task-stop', { detail: { actionId: action.id } }))
-    return
-  }
-  window.dispatchEvent(new CustomEvent('sinth:terminal-run'))
-  window.dispatchEvent(new CustomEvent('sinth:task-run', {
-    detail: {
-      actionId: action.id,
-      title: action.label,
-      command: project.commandLine(action),
-      openBrowser: settings.openBrowserOnRun && SERVER_KINDS.has(action.kind),
-    },
-  }))
+  project.runAction(action)
 }
 
 function label(action: ProjectAction): string {
   if (!tasks.byAction(action.id)) return action.label
-  if (SERVER_KINDS.has(action.kind)) return 'Stop'
+  if (isServer(action)) return 'Stop'
   return action.label + '…'
 }
 
 function hint(action: ProjectAction): string {
   if (!tasks.byAction(action.id)) return project.commandLine(action)
-  return SERVER_KINDS.has(action.kind) ? `Stop ${action.label.toLowerCase()}` : `${action.label} is running`
+  return isServer(action) ? `Stop ${action.label.toLowerCase()}` : `${action.label} is running`
 }
 
 const serverUrl = computed(() => tasks.running.find(t => t.url)?.url ?? null)
@@ -83,10 +67,10 @@ watch(() => workspace.rootPath, () => { void project.detect() }, { immediate: tr
           class="toolbar__action"
           :class="{ 'toolbar__action--primary': action.kind === 'run', 'toolbar__action--running': !!tasks.byAction(action.id) }"
           :title="hint(action)"
-          :disabled="!!tasks.byAction(action.id) && !SERVER_KINDS.has(action.kind)"
+          :disabled="!!tasks.byAction(action.id) && !isServer(action)"
           @click="run(action)"
         >
-          <svg v-if="tasks.byAction(action.id) && SERVER_KINDS.has(action.kind)" viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+          <svg v-if="tasks.byAction(action.id) && isServer(action)" viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
           <span v-else-if="tasks.byAction(action.id)" class="toolbar__spinner" aria-hidden="true" />
           <svg v-else-if="action.kind === 'run'" viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg>
           <svg v-else-if="action.kind === 'build'" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></svg>

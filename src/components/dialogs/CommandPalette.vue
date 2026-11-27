@@ -7,6 +7,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useUpdaterStore } from '@/stores/updater'
 import { useCompilersStore } from '@/stores/compilers'
+import { useProjectStore } from '@/stores/project'
 
 interface Command {
   id: string
@@ -28,6 +29,7 @@ const editor = useEditorStore()
 const settings = useSettingsStore()
 const updater = useUpdaterStore()
 const compilers = useCompilersStore()
+const project = useProjectStore()
 
 async function openFolder(): Promise<void> {
   const picked = await openDialog({ directory: true, multiple: false })
@@ -53,6 +55,8 @@ const commands = computed<Command[]>(() => [
   { id: 'view.newTerminal', label: 'New Terminal', category: 'View', run: () => window.dispatchEvent(new CustomEvent('sinth:new-terminal')) },
   { id: 'view.sidebar', label: 'Toggle Activity Bar', category: 'View', run: () => { settings.activityBarVisible = !settings.activityBarVisible } },
   { id: 'view.statusBar', label: 'Toggle Status Bar', category: 'View', run: () => { settings.statusBarVisible = !settings.statusBarVisible } },
+  ...project.actions.map(a => ({ id: 'project.' + a.id, label: a.label, category: project.isSinth ? 'Sinth' : 'Project', hint: project.commandLine(a), run: () => project.runAction(a) })),
+  ...(project.isSinth ? [{ id: 'sinth.skill', label: 'Install AI Agent Skill', category: 'Sinth', hint: 'Teaches Claude Code, Codex, Cursor and others Sinth', run: () => project.runAction(project.skillAction) }] : []),
   { id: 'update.check', label: 'Check for Updates', category: 'Updates', run: () => updater.checkForUpdate() },
   { id: 'compilers.refresh', label: 'Refresh Compiler Registry', category: 'Compilers', run: () => compilers.refreshAvailable(true) },
   { id: 'settings.reset', label: 'Reset All Settings', category: 'Settings', run: () => settings.reset() }
