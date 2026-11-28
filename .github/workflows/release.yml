@@ -40,6 +40,15 @@ jobs:
         with:
           workspaces: src-tauri
       - run: pnpm install --frozen-lockfile
+      - name: Release notes
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo 'body<<NOTES_EOF'
+            cat RELEASE_NOTES.md
+            echo 'NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,14 +58,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Sinth IDE ${{ github.ref_name }}
-          releaseBody: |
-            Download the installer for your platform below. Existing installs update themselves.
-
-            - Windows: `.msi` or `-setup.exe`
-            - macOS: `.dmg` (universal)
-            - Linux: `.AppImage` or `.deb`
-
-            Requires Node.js 18 or newer for the Sinth compiler.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true

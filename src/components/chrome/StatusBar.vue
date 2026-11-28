@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore } from '@/stores/editor'
-import { useCompilersStore } from '@/stores/compilers'
+import { isOlder, useCompilersStore } from '@/stores/compilers'
+import { useTasksStore } from '@/stores/tasks'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useUpdaterStore } from '@/stores/updater'
 import { useDiagnosticsStore, type SinthDiagnostic } from '@/stores/diagnostics'
@@ -19,6 +20,41 @@ const updater = useUpdaterStore()
 const diagnostics = useDiagnosticsStore()
 const project = useProjectStore()
 const settings = useSettingsStore()
+const tasks = useTasksStore()
+
+watch(() => project.isSinth, v => { if (v) void compilers.refreshAvailable() }, { immediate: true })
+
+/** A newer Sinth than the one this project runs, when there is one. */
+const newerSinth = computed(() => {
+  const c = project.compiler
+  const latest = compilers.latestStable
+  if (!project.isSinth || !c?.version || !c.entry || !latest) return null
+  return isOlder(c.version, latest) ? latest : null
+})
+
+async function updateSinth(): Promise<void> {
+  const latest = newerSinth.value
+  const c = project.compiler
+  if (!latest || !c) return
+  if (c.source === 'project') {
+    // The project pins its own copy in node_modules; update it the way the project installs packages.
+    project.runAction({ id: 'update-sinth', label: 'Update Sinth', kind: 'build', program: 'npm', args: ['install', '--save-dev', '@yannosay/sinth@latest'] })
+    return
+  }
+  installing.value = true
+  installError.value = null
+  try {
+    await compilers.install(latest)
+    await compilers.activate(latest)
+    await project.refreshCompiler()
+  } catch (err) {
+    installError.value = String(err)
+  } finally {
+    installing.value = false
+  }
+}
+
+watch(() => tasks.byAction('update-sinth'), (now, before) => { if (before && !now) void project.refreshCompiler() })
 
 const problemsOpen = ref(false)
 
@@ -101,7 +137,7 @@ async function openProblem(d: SinthDiagnostic): Promise<void> {
           <span :class="{ 'status__count--error': diagnostics.errorCount > 0 }">{{ diagnostics.errorCount }}</span>
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20zM12 10v4M12 17h.01" /></svg>
           <span :class="{ 'status__count--warn': diagnostics.warningCount > 0 }">{{ diagnostics.warningCount }}</span>
-          <span v-if="diagnostics.running" class="status__muted">checking</span>
+          <span v-if="diagnostics.running" class="status__muted">Checking</span>
         </button>
         <div v-if="problemsOpen" class="problems">
           <div class="problems__head">
@@ -118,9 +154,17 @@ async function openProblem(d: SinthDiagnostic): Promise<void> {
       </span>
       <template v-if="project.isSinth && compilerLabel">
         <button v-if="needsCompiler" class="status__item status__item--accent" type="button" :disabled="installing" :title="installError ?? 'Download the latest Sinth compiler from npm'" @click="installSinth">
-          {{ installing ? 'Installing Sinth...' : installError ? 'Sinth install failed, retry' : 'Install Sinth' }}
+          {{ installing ? 'Installing Sinth' : installError ? 'Sinth install failed, retry' : 'Install Sinth' }}
         </button>
         <span v-else class="status__item status__item--static" :title="project.compiler?.entry ?? 'Install Node.js 18 or newer from nodejs.org'">{{ compilerLabel }}</span>
+        <button
+          v-if="newerSinth"
+          class="status__item status__item--accent"
+          type="button"
+          :disabled="installing || !!tasks.byAction('update-sinth')"
+          :title="project.compiler?.source === 'project' ? `This project installs Sinth ${project.compiler.version} in node_modules. Runs npm install --save-dev @yannosay/sinth@latest` : `Download Sinth ${newerSinth} and use it for projects without their own copy`"
+          @click="updateSinth"
+        >{{ tasks.byAction('update-sinth') || installing ? 'Updating Sinth' : `Update to ${newerSinth}` }}</button>
       </template>
     </div>
     <div class="status__right">
@@ -144,7 +188,7 @@ async function openProblem(d: SinthDiagnostic): Promise<void> {
 </template>
 
 <style scoped>
-.status { position: relative; display: flex; align-items: center; justify-content: space-between; height: 24px; flex: 0 0 24px; background: var(--bg-1); border-top: 1px solid var(--border); font-size: 11px; color: var(--fg-muted); padding: 0 6px; user-select: none; }
+.status { position: relative; display: flex; align-items: center; justify-content: space-between; height: 26px; flex: 0 0 26px; background: var(--bg-0); border-top: 1px solid var(--border); font-size: 10.5px; color: var(--fg-muted); padding: 0 6px; user-select: none; }
 .status__left, .status__right { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .status__item { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap; }
 .status__item:hover:not(.status__item--static):not(:disabled) { background: var(--bg-2); color: var(--fg); }

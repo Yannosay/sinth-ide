@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useSettingsStore, type ThemeName } from '@/stores/settings'
+import { useSettingsStore, type RunTarget, type ThemeName } from '@/stores/settings'
 import { useUpdaterStore } from '@/stores/updater'
 import { platformShortcut } from '@/composables/useShortcutRouter'
 import Select from '@/components/ui/Select.vue'
@@ -22,10 +22,16 @@ const updateHint = computed(() => {
 })
 
 const themeOptions = [
-  { value: 'dark', label: 'Sinth Dark' },
+  { value: 'dark', label: 'Sinth' },
   { value: 'midnight', label: 'Midnight' },
   { value: 'slate', label: 'Slate Teal' },
   { value: 'light', label: 'Light' }
+]
+
+const runTargetOptions = [
+  { value: 'preview', label: 'Built-in preview' },
+  { value: 'browser', label: 'Default browser' },
+  { value: 'none', label: 'Nowhere' }
 ]
 
 const whitespaceOptions = [
@@ -71,7 +77,7 @@ function onThemeUpdate(v: string): void {
         <FormRow label="Bracket pair colorization"><Toggle v-model="settings.editorBracketPairColorization" /></FormRow>
       </section>
       <section class="group">
-        <h3 class="group__title">Terminal</h3>
+        <h3 class="group__title">Run and terminal</h3>
         <FormRow label="Font size">
           <input v-model.number="settings.terminalFontSize" type="number" min="10" max="24" class="input input--sm">
           <span class="unit">px</span>
@@ -79,14 +85,16 @@ function onThemeUpdate(v: string): void {
         <FormRow label="Shell" hint="Empty uses the OS default">
           <input v-model="settings.terminalShell" type="text" class="input" placeholder="powershell.exe">
         </FormRow>
-        <FormRow label="Open browser on Run" hint="Opens the dev server in your default browser"><Toggle v-model="settings.openBrowserOnRun" /></FormRow>
+        <FormRow label="Show Run in" hint="Where the dev server opens when you press Run">
+          <Select :model-value="settings.runTarget" :options="runTargetOptions" @update:model-value="v => settings.runTarget = v as RunTarget" />
+        </FormRow>
       </section>
       <section class="group">
         <h3 class="group__title">Updates</h3>
         <FormRow label="Check on startup"><Toggle v-model="settings.autoCheckUpdates" /></FormRow>
         <FormRow label="Version" :hint="updateHint">
           <span class="mono">{{ updater.currentVersion }}</span>
-          <button class="btn" type="button" :disabled="updater.state === 'checking' || updater.state === 'downloading'" @click="updater.state === 'available' ? updater.reopen() : updater.checkForUpdate()">
+          <button class="btn btn--ghost" type="button" :disabled="updater.state === 'checking' || updater.state === 'downloading'" @click="updater.state === 'available' ? updater.reopen() : updater.checkForUpdate()">
             {{ updater.state === 'checking' ? 'Checking...' : updater.state === 'available' ? `Install ${updater.availableVersion}` : 'Check for updates' }}
           </button>
         </FormRow>
@@ -108,6 +116,7 @@ function onThemeUpdate(v: string): void {
           <div class="shortcut"><span>New Terminal</span><kbd>{{ platformShortcut('Ctrl+Shift+`') }}</kbd></div>
           <div class="shortcut"><span>Toggle Sidebar</span><kbd>{{ platformShortcut('Ctrl+B') }}</kbd></div>
           <div class="shortcut"><span>Search in Folder</span><kbd>{{ platformShortcut('Ctrl+Shift+F') }}</kbd></div>
+          <div class="shortcut"><span>Toggle Preview</span><kbd>{{ platformShortcut('Ctrl+Shift+V') }}</kbd></div>
         </div>
       </section>
       <section class="group">
@@ -121,10 +130,10 @@ function onThemeUpdate(v: string): void {
 <style scoped>
 .panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
 .panel__header { display: flex; align-items: center; height: 32px; flex: 0 0 32px; padding: 0 12px; border-bottom: 1px solid var(--border); }
-.panel__title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.panel__title { font-size: 12px; font-weight: 500; color: var(--fg); }
 .panel__body { flex: 1; overflow: auto; min-height: 0; padding: 12px; }
 .group + .group { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
-.group__title { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); }
+.group__title { margin: 0 0 6px; font-size: 12px; font-weight: 500; color: var(--fg); }
 .input { padding: 4px 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); font: inherit; font-size: 12px; width: 100%; max-width: 260px; }
 .input:focus { outline: none; border-color: var(--accent); }
 .input--sm { width: 64px; max-width: 64px; }
@@ -132,10 +141,5 @@ function onThemeUpdate(v: string): void {
 .shortcuts { display: flex; flex-direction: column; gap: 4px; }
 .shortcut { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 12px; }
 .shortcut kbd { font-family: var(--font-mono); font-size: 11px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; color: var(--fg-muted); }
-.btn { padding: 5px 12px; background: var(--bg-3); color: var(--fg); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; }
-.btn:hover:not(:disabled) { background: var(--border); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn--danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
-.btn--danger:hover { background: rgba(239, 68, 68, 0.1); }
 .mono { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); }
 </style>

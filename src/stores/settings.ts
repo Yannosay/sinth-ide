@@ -4,6 +4,8 @@ import { ref, watch } from 'vue'
 const STORAGE_KEY = 'sinth-ide:settings:v1'
 
 export type ThemeName = 'dark' | 'midnight' | 'slate' | 'light'
+/** Where Run shows the dev server: the built-in preview, the default browser, or nowhere. */
+export type RunTarget = 'preview' | 'browser' | 'none'
 
 export interface SettingsSnapshot {
   theme: ThemeName
@@ -17,7 +19,8 @@ export interface SettingsSnapshot {
   editorBracketPairColorization: boolean
   terminalFontSize: number
   terminalShell: string
-  openBrowserOnRun: boolean
+  runTarget: RunTarget
+  previewWidth: number
   autoCheckUpdates: boolean
   activityBarVisible: boolean
   statusBarVisible: boolean
@@ -39,7 +42,8 @@ const DEFAULTS: SettingsSnapshot = {
   editorBracketPairColorization: true,
   terminalFontSize: 13,
   terminalShell: '',
-  openBrowserOnRun: true,
+  runTarget: 'preview',
+  previewWidth: 520,
   autoCheckUpdates: true,
   activityBarVisible: true,
   statusBarVisible: true,
@@ -61,7 +65,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorBracketPairColorization = ref(DEFAULTS.editorBracketPairColorization)
   const terminalFontSize = ref(DEFAULTS.terminalFontSize)
   const terminalShell = ref(DEFAULTS.terminalShell)
-  const openBrowserOnRun = ref(DEFAULTS.openBrowserOnRun)
+  const runTarget = ref<RunTarget>(DEFAULTS.runTarget)
+  const previewWidth = ref(DEFAULTS.previewWidth)
   const autoCheckUpdates = ref(DEFAULTS.autoCheckUpdates)
   const activityBarVisible = ref(DEFAULTS.activityBarVisible)
   const statusBarVisible = ref(DEFAULTS.statusBarVisible)
@@ -85,7 +90,8 @@ export const useSettingsStore = defineStore('settings', () => {
       editorBracketPairColorization: editorBracketPairColorization.value,
       terminalFontSize: terminalFontSize.value,
       terminalShell: terminalShell.value,
-      openBrowserOnRun: openBrowserOnRun.value,
+      runTarget: runTarget.value,
+      previewWidth: previewWidth.value,
       autoCheckUpdates: autoCheckUpdates.value,
       activityBarVisible: activityBarVisible.value,
       statusBarVisible: statusBarVisible.value,
@@ -112,7 +118,10 @@ export const useSettingsStore = defineStore('settings', () => {
       if (typeof p.editorBracketPairColorization === 'boolean') editorBracketPairColorization.value = p.editorBracketPairColorization
       if (typeof p.terminalFontSize === 'number') terminalFontSize.value = p.terminalFontSize
       if (typeof p.terminalShell === 'string') terminalShell.value = p.terminalShell
-      if (typeof p.openBrowserOnRun === 'boolean') openBrowserOnRun.value = p.openBrowserOnRun
+      const legacy = p as { openBrowserOnRun?: unknown }
+      if (p.runTarget === 'preview' || p.runTarget === 'browser' || p.runTarget === 'none') runTarget.value = p.runTarget
+      else if (legacy.openBrowserOnRun === false) runTarget.value = 'none'
+      if (typeof p.previewWidth === 'number' && p.previewWidth >= 280) previewWidth.value = p.previewWidth
       if (typeof p.autoCheckUpdates === 'boolean') autoCheckUpdates.value = p.autoCheckUpdates
       if (typeof p.activityBarVisible === 'boolean') activityBarVisible.value = p.activityBarVisible
       if (typeof p.statusBarVisible === 'boolean') statusBarVisible.value = p.statusBarVisible
@@ -139,7 +148,8 @@ export const useSettingsStore = defineStore('settings', () => {
     editorBracketPairColorization.value = DEFAULTS.editorBracketPairColorization
     terminalFontSize.value = DEFAULTS.terminalFontSize
     terminalShell.value = DEFAULTS.terminalShell
-    openBrowserOnRun.value = DEFAULTS.openBrowserOnRun
+    runTarget.value = DEFAULTS.runTarget
+    previewWidth.value = DEFAULTS.previewWidth
     autoCheckUpdates.value = DEFAULTS.autoCheckUpdates
     activityBarVisible.value = DEFAULTS.activityBarVisible
     statusBarVisible.value = DEFAULTS.statusBarVisible
@@ -166,7 +176,7 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     theme, editorFontSize, editorFontFamily, editorTabSize, editorWordWrap,
     editorMinimap, editorLineNumbers, editorRenderWhitespace, editorBracketPairColorization,
-    terminalFontSize, terminalShell, openBrowserOnRun, autoCheckUpdates,
+    terminalFontSize, terminalShell, runTarget, previewWidth, autoCheckUpdates,
     activityBarVisible, statusBarVisible, sidebarWidth, terminalHeight,
     recentFolders, recentFiles,
     load, reset, pushRecentFolder, pushRecentFile

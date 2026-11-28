@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
-import IconButton from '@/components/ui/IconButton.vue'
 import FileIcon from '@/components/ui/FileIcon.vue'
 
 const editor = useEditorStore()
 
 function onClose(e: MouseEvent, id: string): void {
   e.stopPropagation()
-  editor.closeTab(id)
+  void editor.requestClose(id)
 }
 </script>
 
 <template>
-  <div class="tabs">
+  <div v-if="editor.tabs.length" class="tabs">
     <div class="tabs__scroll">
       <div
         v-for="tab in editor.tabs"
@@ -32,19 +31,14 @@ function onClose(e: MouseEvent, id: string): void {
         </button>
       </div>
     </div>
-    <div class="tabs__actions">
-      <IconButton title="Close active tab (Ctrl+W)" size="sm" :disabled="!editor.activeTabId" @click="() => { if (editor.activeTabId) editor.closeTab(editor.activeTabId) }">
-        <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
-      </IconButton>
-    </div>
   </div>
 </template>
 
 <style scoped>
-.tabs { display: flex; align-items: stretch; height: 32px; flex: 0 0 32px; background: var(--bg-1); border-bottom: 1px solid var(--border); }
+.tabs { display: flex; align-items: stretch; height: 34px; flex: 0 0 34px; background: var(--bg-1); border-bottom: 1px solid var(--border); }
 .tabs__scroll { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; }
 .tabs__scroll::-webkit-scrollbar { display: none; }
-.tab { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px; min-width: 100px; max-width: 220px; border-right: 1px solid var(--border); cursor: pointer; color: var(--fg-muted); font-size: 12px; position: relative; transition: background 60ms, color 60ms; }
+.tab { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px; min-width: 100px; max-width: 220px; border-right: 1px solid var(--border); cursor: pointer; color: var(--fg-muted); font-size: 11.5px; position: relative; transition: background 100ms, color 100ms; }
 .tab:hover { background: var(--bg-2); color: var(--fg); }
 .tab--active { background: var(--bg-0); color: var(--fg); }
 .tab--active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--bg-0); }
@@ -54,5 +48,4 @@ function onClose(e: MouseEvent, id: string): void {
 .tab__close { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 3px; color: var(--fg-subtle); opacity: 0; transition: opacity 80ms, background 80ms; }
 .tab:hover .tab__close, .tab--active .tab__close { opacity: 1; }
 .tab__close:hover { background: var(--bg-3); color: var(--fg); }
-.tabs__actions { display: flex; align-items: center; padding: 0 6px; border-left: 1px solid var(--border); }
 </style>

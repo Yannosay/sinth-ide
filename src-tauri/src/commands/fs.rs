@@ -25,8 +25,9 @@ fn system_time_ms(t: std::io::Result<std::time::SystemTime>) -> u64 {
     }
 }
 
+/// Folders and files that are never useful in the explorer, quick open or search.
 fn is_hidden(name: &str) -> bool {
-    name.starts_with('.') || name == "node_modules" || name == "target" || name == "dist"
+    matches!(name, ".git" | ".hg" | ".svn" | "node_modules" | "target" | ".DS_Store" | "Thumbs.db" | ".vercel" | ".wrangler" | ".sinth")
 }
 
 fn list_dir(path: &Path) -> Result<Vec<FileNode>, String> {
@@ -90,6 +91,14 @@ fn build_tree(path: &Path, depth: usize) -> Result<Vec<FileNode>, String> {
     Ok(nodes)
 }
 
+/// Windows canonical paths start with `\\?\`; shells, Node and people expect the plain form.
+fn strip_verbatim(p: &str) -> String {
+    if let Some(rest) = p.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    p.strip_prefix(r"\\?\").unwrap_or(p).to_string()
+}
+
 #[tauri::command]
 pub async fn read_directory_tree(path: String) -> Result<serde_json::Value, String> {
     let p = PathBuf::from(&path);
@@ -101,7 +110,7 @@ pub async fn read_directory_tree(path: String) -> Result<serde_json::Value, Stri
     }
     let tree = build_tree(&p, 0)?;
     let canonical = fs::canonicalize(&p)
-        .map(|c| c.to_string_lossy().into_owned())
+        .map(|c| strip_verbatim(&c.to_string_lossy()))
         .unwrap_or(path);
     Ok(serde_json::json!({ "path": canonical, "tree": tree }))
 }
@@ -162,7 +171,7 @@ pub async fn search_in_folder(path: String, query: String, case_sensitive: bool)
         .into_iter()
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
-            !(n.starts_with('.') || n == "node_modules" || n == "target" || n == "dist")
+            e.depth() == 0 || !(is_hidden(&n) || n == "dist")
         })
         .flatten()
     {
@@ -203,4 +212,36 @@ pub async fn search_in_folder(path: String, query: String, case_sensitive: bool)
         }
     }
     Ok(hits)
+}
+const MAX_LISTED_FILES: usize = 20_000;
+
+/// Every file below `path` (relative, forward slashes) for quick open. Skips the folders the explorer hides and build output.
+#[tauri::command]
+pub async fn list_files(path: String) -> Result<Vec<String>, String> {
+    let root = PathBuf::from(&path);
+    if !root.is_dir() {
+        return Err(format!("not a directory: {path}"));
+    }
+    let mut out: Vec<String> = Vec::new();
+    for entry in walkdir::WalkDir::new(&root)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            let n = e.file_name().to_string_lossy();
+            e.depth() == 0 || !(is_hidden(&n) || n == "dist")
+        })
+        .flatten()
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        if let Ok(rel) = entry.path().strip_prefix(&root) {
+            out.push(rel.to_string_lossy().replace('\\', "/"));
+        }
+        if out.len() >= MAX_LISTED_FILES {
+            break;
+        }
+    }
+    out.sort();
+    Ok(out)
 }

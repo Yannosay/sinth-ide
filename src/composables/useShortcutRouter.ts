@@ -12,6 +12,7 @@ export interface ShortcutHandlers {
   onOpenSettings?: () => void
   onSearch?: () => void
   onOpenFolder?: () => void
+  onTogglePreview?: () => void
 }
 
 let handlers: ShortcutHandlers = {}
@@ -41,6 +42,7 @@ export function useShortcutRouter(): void {
     if (!shift && e.code === 'KeyB') { e.preventDefault(); handlers.onToggleSidebar?.(); return }
     if (e.code === 'Comma') { e.preventDefault(); handlers.onOpenSettings?.(); return }
     if (shift && e.code === 'KeyF') { e.preventDefault(); handlers.onSearch?.(); return }
+    if (shift && e.code === 'KeyV') { e.preventDefault(); handlers.onTogglePreview?.(); return }
     if (shift && e.code === 'KeyO') { e.preventDefault(); handlers.onOpenFolder?.(); return }
     if (e.code === 'KeyR' || e.code === 'F5') { e.preventDefault() }
   }

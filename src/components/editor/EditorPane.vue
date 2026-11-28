@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import EditorTabs from './EditorTabs.vue'
 import MonacoEditor from './MonacoEditor.vue'
 import { useEditorStore } from '@/stores/editor'
+import { platformShortcut } from '@/composables/useShortcutRouter'
 
 const editor = useEditorStore()
 const active = computed(() => editor.activeTab)
@@ -14,7 +15,7 @@ const active = computed(() => editor.activeTab)
     <div class="editor-pane__body">
       <div v-if="!active" class="editor-pane__empty">
         <p>No file open.</p>
-        <p class="editor-pane__hint">Open a file from the Explorer or press Ctrl+P to quick open.</p>
+        <p class="editor-pane__hint">Pick one in the Explorer or press {{ platformShortcut('Ctrl+P') }} to search.</p>
       </div>
       <MonacoEditor v-else :tab="active" />
     </div>

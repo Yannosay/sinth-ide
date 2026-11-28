@@ -58,14 +58,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal { position: fixed; inset: 0; background: rgba(5, 5, 6, 0.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal__dialog { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; max-height: calc(100vh - 80px); outline: none; }
-.modal__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-.modal__title { margin: 0; font-size: 15px; font-weight: 600; }
+.modal__header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 4px; }
+.modal__title { margin: 0; font-family: var(--font-brand); font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: var(--fg); }
 .modal__close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--fg-muted); transition: background 80ms, color 80ms; }
 .modal__close:hover { background: var(--bg-3); color: var(--fg); }
-.modal__body { padding: 20px; overflow: auto; flex: 1; min-height: 0; }
-.modal__footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.modal__body { padding: 14px 22px 20px; overflow: auto; flex: 1; min-height: 0; }
+.modal__footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .modal-enter-active, .modal-leave-active { transition: opacity 140ms ease; }
 .modal-enter-active .modal__dialog, .modal-leave-active .modal__dialog { transition: transform 140ms ease, opacity 140ms ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }

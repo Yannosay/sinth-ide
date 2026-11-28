@@ -143,11 +143,11 @@ async function doActivate(v: InstalledCompiler): Promise<void> {
 <style scoped>
 .panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
 .panel__header { display: flex; align-items: center; justify-content: space-between; height: 32px; flex: 0 0 32px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--border); }
-.panel__title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.panel__title { font-size: 12px; font-weight: 500; color: var(--fg); }
 .panel__actions { display: flex; gap: 2px; }
 .panel__body { flex: 1; overflow: auto; min-height: 0; padding: 12px; }
 .section + .section { margin-top: 20px; }
-.section__head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }
+.section__head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px; font-size: 11.5px; font-weight: 500; color: var(--fg); }
 .section__count { background: var(--bg-3); padding: 1px 6px; border-radius: 8px; font-size: 10px; }
 .runtime { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-md); }
 .runtime__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); flex-shrink: 0; }
@@ -164,7 +164,7 @@ async function doActivate(v: InstalledCompiler): Promise<void> {
 .list__main { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .list__version { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
 .list__meta { font-size: 11px; color: var(--fg-subtle); }
-.list__badge { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 8px; background: var(--bg-3); color: var(--fg-muted); }
+.list__badge { font-size: 10px; padding: 2px 6px; border-radius: 8px; background: var(--bg-3); color: var(--fg-muted); }
 .list__badge--active { background: var(--accent); color: var(--accent-fg); }
 .list__deprecated { font-size: 10px; color: var(--warning); }
 .list__tag { font-size: 11px; color: var(--accent); }

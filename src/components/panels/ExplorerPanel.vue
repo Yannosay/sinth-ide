@@ -305,7 +305,7 @@ function parentInlineDepth(parentDir: string): number | null {
 <style scoped>
 .panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
 .panel__header { display: flex; align-items: center; justify-content: space-between; height: 32px; flex: 0 0 32px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--border); }
-.panel__title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.panel__title { font-size: 12px; font-weight: 500; color: var(--fg); }
 .panel__actions { display: flex; gap: 2px; }
 .panel__body { flex: 1; overflow: auto; min-height: 0; }
 .panel__loading { display: flex; align-items: center; justify-content: center; padding: 24px; color: var(--fg-muted); }

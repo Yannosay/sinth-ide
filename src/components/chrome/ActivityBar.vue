@@ -11,7 +11,7 @@ interface ActivityItem {
 
 const items: ActivityItem[] = [
   { id: 'explorer', label: 'Explorer', shortcut: 'Ctrl+Shift+E' },
-  { id: 'compilers', label: 'Compiler Versions', shortcut: 'Ctrl+Shift+C' },
+  { id: 'compilers', label: 'Sinth versions', shortcut: 'Ctrl+Shift+C' },
   { id: 'search', label: 'Search', shortcut: 'Ctrl+Shift+F' }
 ]
 </script>
@@ -59,11 +59,11 @@ const items: ActivityItem[] = [
 </template>
 
 <style scoped>
-.activity { display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 48px; flex: 0 0 48px; background: var(--bg-1); border-right: 1px solid var(--border); padding: 6px 0; }
+.activity { display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 46px; flex: 0 0 46px; background: var(--bg-0); border-right: 1px solid var(--border); padding: 8px 0; }
 .activity__group { display: flex; flex-direction: column; gap: 4px; }
-.activity__btn { position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); color: var(--fg-subtle); transition: background 80ms, color 80ms; }
+.activity__btn { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); color: var(--fg-subtle); transition: background 80ms, color 80ms; }
 .activity__btn:hover { background: var(--bg-2); color: var(--fg); }
 .activity__btn--active { color: var(--accent); background: var(--accent-soft); }
-.activity__btn--active::before { content: ''; position: absolute; left: -6px; top: 8px; bottom: 8px; width: 2px; background: var(--accent); border-radius: 2px; }
-.activity__btn svg { width: 22px; height: 22px; }
+.activity__btn--active::before { content: ''; position: absolute; left: -6px; top: 9px; bottom: 9px; width: 2px; background: var(--accent); border-radius: 0 2px 2px 0; }
+.activity__btn svg { width: 18px; height: 18px; }
 </style>

@@ -59,9 +59,29 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  /** Re-reads the tree from disk, keeping expanded folders and the selection. */
   async function refresh(): Promise<void> {
-    if (!rootPath.value) return
-    await openFolder(rootPath.value)
+    const root = rootPath.value
+    if (!root) return
+    const keep = new Set(expanded.value)
+    try {
+      const result = await invoke<{ path: string; tree: FileNode[] }>('read_directory_tree', { path: root })
+      const load = async (nodes: FileNode[]): Promise<void> => {
+        for (const n of nodes) {
+          if (!n.isDirectory || !keep.has(n.path)) continue
+          if (n.hasChildren && (!n.children || n.children.length === 0)) {
+            try { n.children = await invoke<FileNode[]>('read_directory', { path: n.path }) } catch { n.children = [] }
+          }
+          await load(n.children ?? [])
+        }
+      }
+      await load(result.tree)
+      if (rootPath.value !== root) return
+      tree.value = result.tree
+      if (selected.value && !findNode(result.tree, selected.value)) selected.value = null
+    } catch (err) {
+      console.error('[workspace] refresh failed:', err)
+    }
   }
 
   async function reloadNode(path: string): Promise<void> {

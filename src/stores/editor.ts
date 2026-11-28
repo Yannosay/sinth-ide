@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
+import { useConfirmStore } from './confirm'
 
 export interface EditorTab {
   id: string
@@ -116,8 +118,72 @@ export const useEditorStore = defineStore('editor', () => {
     tab.dirty = false
   }
 
+  async function saveTab(id: string): Promise<boolean> {
+    const tab = tabs.value.find(t => t.id === id)
+    if (!tab || tab.readonly) return false
+    if (!tab.dirty) return true
+    const content = tab.content
+    await invoke('write_text_file', { path: tab.path, content })
+    markSaved(id, content)
+    return true
+  }
+
+  /**
+   * Asks what to do with unsaved changes in `dirty`. Resolves true when it is safe to continue
+   * (saved or discarded), false when the user cancelled or a save failed.
+   */
+  async function settleUnsaved(dirty: EditorTab[]): Promise<boolean> {
+    if (!dirty.length) return true
+    const one = dirty.length === 1
+    const choice = await useConfirmStore().ask({
+      title: one ? `Save changes to ${dirty[0].name}?` : `Save changes to ${dirty.length} files?`,
+      message: one ? 'Your changes are lost if you do not save them.' : `${dirty.map(t => t.name).join(', ')} have unsaved changes. They are lost if you do not save them.`,
+      choices: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'discard', label: "Don't save", kind: 'danger' },
+        { id: 'save', label: one ? 'Save' : 'Save all', kind: 'primary' },
+      ],
+      cancel: 'cancel',
+    })
+    if (choice === 'cancel') return false
+    if (choice === 'save') {
+      try { for (const t of dirty) await saveTab(t.id) } catch (err) { console.error('[editor] save failed:', err); return false }
+    }
+    return true
+  }
+
+  async function requestClose(id: string): Promise<boolean> {
+    const tab = tabs.value.find(t => t.id === id)
+    if (!tab) return true
+    if (!(await settleUnsaved(tab.dirty ? [tab] : []))) return false
+    closeTab(id)
+    return true
+  }
+
+  async function requestCloseAll(): Promise<boolean> {
+    if (!(await settleUnsaved(tabs.value.filter(t => t.dirty)))) return false
+    closeAll()
+    return true
+  }
+
+  /**
+   * Picks up changes made outside the IDE (another editor, git, an AI agent) for tabs without
+   * unsaved edits. Tabs whose file was deleted are left open so nothing is lost.
+   */
+  async function syncFromDisk(): Promise<void> {
+    for (const tab of tabs.value.slice(0, 30)) {
+      if (tab.dirty || tab.readonly) continue
+      try {
+        const disk = await invoke<string>('read_text_file', { path: tab.path })
+        const current = tabs.value.find(t => t.id === tab.id)
+        if (current && !current.dirty && disk !== current.originalContent) markSaved(tab.id, disk)
+      } catch { /* file removed or unreadable */ }
+    }
+  }
+
   return {
     tabs, activeTabId, activeTab, cursorLine, cursorColumn, selectionLength,
-    openFile, closeTab, closeAll, setActive, updateContent, markSaved
+    openFile, closeTab, closeAll, setActive, updateContent, markSaved,
+    saveTab, settleUnsaved, requestClose, requestCloseAll, syncFromDisk
   }
 })

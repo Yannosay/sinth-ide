@@ -12,6 +12,7 @@ import { useTerminalStore } from '@/stores/terminal'
 import { useSettingsStore } from '@/stores/settings'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTasksStore } from '@/stores/tasks'
+import { usePreviewStore } from '@/stores/preview'
 import IconButton from '@/components/ui/IconButton.vue'
 
 const height = defineModel<number>('height', { required: true })
@@ -20,13 +21,15 @@ const store = useTerminalStore()
 const settings = useSettingsStore()
 const workspace = useWorkspaceStore()
 const tasks = useTasksStore()
+const preview = usePreviewStore()
 
 /** A project action that runs in its own terminal and exits when done. */
 export interface TaskRequest {
   actionId: string
   title: string
   command: string
-  openBrowser: boolean
+  /** Where the server address opens once it is printed. */
+  open: 'preview' | 'browser' | null
 }
 
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g
@@ -91,14 +94,15 @@ async function spawnTerminal(cwdOverride?: string, task: TaskRequest | null = nu
     allowTransparency: true,
     scrollback: 10000,
     theme: {
-      background: '#0b0b0e',
-      foreground: '#d4d4d8',
-      cursor: '#a855f7',
-      selectionBackground: 'rgba(168, 85, 247, 0.28)',
-      black: '#0b0b0e', red: '#ef4444', green: '#22c55e', yellow: '#f59e0b',
-      blue: '#3b82f6', magenta: '#a855f7', cyan: '#06b6d4', white: '#e6e6ee',
-      brightBlack: '#6b6b78', brightRed: '#f87171', brightGreen: '#4ade80', brightYellow: '#fbbf24',
-      brightBlue: '#60a5fa', brightMagenta: '#c084fc', brightCyan: '#22d3ee', brightWhite: '#ffffff'
+      background: '#0a0a0b',
+      foreground: '#e4e4e7',
+      cursor: '#a78bfa',
+      cursorAccent: '#0a0a0b',
+      selectionBackground: 'rgba(167, 139, 250, 0.28)',
+      black: '#0a0a0b', red: '#f87171', green: '#4ade80', yellow: '#fbbf24',
+      blue: '#60a5fa', magenta: '#a78bfa', cyan: '#67e8f9', white: '#e4e4e7',
+      brightBlack: '#71717a', brightRed: '#fca5a5', brightGreen: '#86efac', brightYellow: '#fde68a',
+      brightBlue: '#93c5fd', brightMagenta: '#c4b5fd', brightCyan: '#a5f3fc', brightWhite: '#fafafa'
     }
   })
 
@@ -131,7 +135,7 @@ async function spawnTerminal(cwdOverride?: string, task: TaskRequest | null = nu
   for (const chunk of pendingOutput.get(id) ?? []) writeOutput(id, chunk)
   pendingOutput.delete(id)
 
-  const title = task ? task.title : cwd ? `Shell — ${cwd.split(/[\\/]/).pop() || cwd}` : `Shell ${store.instances.length + 1}`
+  const title = task ? task.title : `Terminal ${store.instances.length + 1}`
   store.register({ id, title, cwd, alive: true })
   if (exited.has(id)) onExit(id)
   setActive(id)
@@ -183,7 +187,8 @@ function writeOutput(id: number, data: string): void {
   const match = rt.tail.match(SERVER_URL)
   if (!match) return
   running.url = match[1]
-  if (rt.task.openBrowser) void openExternal(match[1]).catch(err => console.error('[terminal] open browser failed:', err))
+  if (rt.task.open === 'preview') preview.show(match[1])
+  else if (rt.task.open === 'browser') void openExternal(match[1]).catch(err => console.error('[terminal] open browser failed:', err))
 }
 
 async function runTask(task: TaskRequest): Promise<void> {
@@ -389,10 +394,13 @@ watch(() => workspace.rootPath, async (next, prev) => {
           <input v-model="searchQuery" type="search" placeholder="Find" @keydown.enter="runSearch">
         </div>
         <IconButton title="Restart active shell" size="sm" :disabled="store.activeId === null" @click="() => { if (store.activeId !== null) restartTerminal(store.activeId) }">
-          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></svg>
+          <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>
         </IconButton>
         <IconButton title="Find" size="sm" @click="searchVisible = !searchVisible">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        </IconButton>
+        <IconButton title="Clear" size="sm" :disabled="store.activeId === null" @click="clearActive">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13" /></svg>
         </IconButton>
         <IconButton title="New terminal (Ctrl+Shift+`)" size="sm" @click="newTerminal">
           <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
@@ -405,13 +413,12 @@ watch(() => workspace.rootPath, async (next, prev) => {
 
 <style scoped>
 .terminal { position: relative; display: flex; flex-direction: column; background: var(--term-bg); border-top: 1px solid var(--border); flex-shrink: 0; }
-.terminal__header { display: flex; align-items: center; justify-content: space-between; height: 30px; flex: 0 0 30px; padding: 0 6px 0 0; border-bottom: 1px solid var(--border); background: var(--bg-1); }
-.terminal__tabs { display: flex; height: 100%; overflow-x: auto; scrollbar-width: none; }
+.terminal__header { display: flex; align-items: center; justify-content: space-between; height: 32px; flex: 0 0 32px; padding: 0 6px 0 4px; border-bottom: 1px solid var(--border); background: var(--bg-0); }
+.terminal__tabs { display: flex; align-items: center; gap: 2px; height: 100%; overflow-x: auto; scrollbar-width: none; }
 .terminal__tabs::-webkit-scrollbar { display: none; }
-.terminal__tab { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px; height: 100%; border-right: 1px solid var(--border); color: var(--fg-muted); font-size: 11px; transition: background 60ms, color 60ms; min-width: 100px; max-width: 220px; position: relative; }
+.terminal__tab { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; height: 24px; border-radius: var(--radius-sm); color: var(--fg-muted); font-size: 11px; transition: background 100ms, color 100ms; min-width: 90px; max-width: 200px; position: relative; }
 .terminal__tab:hover { background: var(--bg-2); color: var(--fg); }
-.terminal__tab--active { background: var(--term-bg); color: var(--fg); }
-.terminal__tab--active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: var(--accent); }
+.terminal__tab--active { background: var(--bg-3); color: var(--fg); }
 .terminal__tab--dead .terminal__tab-label { text-decoration: line-through; opacity: 0.6; }
 .terminal__tab-label { flex: 1; min-width: 0; }
 .terminal__tab-close { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; color: var(--fg-subtle); }

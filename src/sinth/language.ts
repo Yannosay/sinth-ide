@@ -144,10 +144,10 @@ export function registerSinthLanguage(monaco: typeof Monaco): void {
     base: 'vs-dark', inherit: true, rules,
     colors: {
       'editor.background': '#0a0a0b', 'editor.foreground': '#f5f5f6',
-      'editor.lineHighlightBackground': '#151518', 'editorLineNumber.foreground': '#4a4a52',
-      'editorLineNumber.activeForeground': '#a1a1aa', 'editorCursor.foreground': '#c084fc',
-      'editor.selectionBackground': '#c084fc42', 'editorIndentGuide.background1': '#1c1c20',
-      'editorBracketMatch.border': '#c084fc80', 'editorWidget.background': '#151518',
+      'editor.lineHighlightBackground': '#121216', 'editorLineNumber.foreground': '#45454d',
+      'editorLineNumber.activeForeground': '#a1a1aa', 'editorCursor.foreground': '#a78bfa',
+      'editor.selectionBackground': '#a78bfa3d', 'editorIndentGuide.background1': '#1a1a1f',
+      'editorBracketMatch.border': '#a78bfa80', 'editorWidget.background': '#131317',
     },
   })
 

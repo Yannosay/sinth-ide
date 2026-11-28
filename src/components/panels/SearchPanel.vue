@@ -94,7 +94,7 @@ function basename(p: string): string {
 <style scoped>
 .panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
 .panel__header { display: flex; align-items: center; height: 32px; flex: 0 0 32px; padding: 0 12px; border-bottom: 1px solid var(--border); }
-.panel__title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.panel__title { font-size: 12px; font-weight: 500; color: var(--fg); }
 .panel__body { flex: 1; overflow: auto; min-height: 0; padding: 12px; }
 .search { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .search__input { width: 100%; padding: 6px 10px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--fg); font: inherit; font-size: 12px; }

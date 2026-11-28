@@ -53,6 +53,7 @@ export function registerSinthProviders(monaco: typeof Monaco): void {
       if (/^\s*import\s+[^"]*"[^"]*$/.test(before) || /from\s+"[^"]*$/.test(before)) {
         suggestions.push({ label: 'sinth:ui', kind: Kind.Module, insertText: 'sinth:ui', range, detail: 'Built-in component library' })
         suggestions.push({ label: 'sinth:env', kind: Kind.Module, insertText: 'sinth:env', range, detail: 'PUBLIC_ environment variables from .env' })
+        suggestions.push({ label: 'sinth:desktop', kind: Kind.Module, insertText: 'sinth:desktop', range, detail: 'Native dialogs, files and notifications for desktop apps' })
         return { suggestions }
       }
 

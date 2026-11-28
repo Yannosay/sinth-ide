@@ -5,6 +5,10 @@ interface MenuItem {
   id: string
   label: string
   danger?: boolean
+  /** Secondary text on the right, such as a path or shortcut. */
+  hint?: string
+  /** Draws a divider above the item. */
+  separator?: boolean
 }
 
 const props = defineProps<{
@@ -68,18 +72,22 @@ function pick(id: string): void {
     <div
       ref="menuRef"
       class="context-menu"
+      role="menu"
       :style="{ left: posX + 'px', top: posY + 'px' }"
     >
-      <button
-        v-for="item in items"
-        :key="item.id"
-        type="button"
-        class="context-menu__item"
-        :class="{ 'context-menu__item--danger': item.danger }"
-        @click="pick(item.id)"
-      >
-        {{ item.label }}
-      </button>
+      <template v-for="item in items" :key="item.id">
+        <div v-if="item.separator" class="context-menu__sep" role="separator" />
+        <button
+          type="button"
+          role="menuitem"
+          class="context-menu__item"
+          :class="{ 'context-menu__item--danger': item.danger }"
+          @click="pick(item.id)"
+        >
+          <span class="truncate">{{ item.label }}</span>
+          <span v-if="item.hint" class="context-menu__hint truncate">{{ item.hint }}</span>
+        </button>
+      </template>
     </div>
   </Teleport>
 </template>
@@ -99,11 +107,18 @@ function pick(id: string): void {
   gap: 1px;
 }
 
+.context-menu__sep { height: 1px; margin: 4px 6px; background: var(--border); }
+
+.context-menu__hint { margin-left: auto; padding-left: 16px; max-width: 220px; font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-subtle); }
+
 .context-menu__item {
+  display: flex;
+  align-items: center;
+  max-width: 420px;
   text-align: left;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--fg);
   transition: background 80ms;
 }

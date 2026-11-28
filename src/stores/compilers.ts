@@ -29,6 +29,18 @@ export interface InstallProgress {
   message: string
 }
 
+/** True when version `a` is older than `b` (plain x.y.z, pre-release tags ignored). */
+export function isOlder(a: string, b: string): boolean {
+  const pa = a.split('-')[0].split('.').map(Number)
+  const pb = b.split('-')[0].split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0
+    const y = pb[i] || 0
+    if (x !== y) return x < y
+  }
+  return false
+}
+
 export const useCompilersStore = defineStore('compilers', () => {
   const available = ref<CompilerVersion[]>([])
   const installed = ref<InstalledCompiler[]>([])
@@ -42,6 +54,8 @@ export const useCompilersStore = defineStore('compilers', () => {
   const nodePath = ref<string | null>(null)
 
   const hasAny = computed(() => installed.value.length > 0)
+  /** Newest stable release on npm, once `refreshAvailable` has run. */
+  const latestStable = computed(() => available.value.find(v => !v.deprecated && !v.version.includes('-'))?.version ?? null)
 
   async function bootstrap(): Promise<void> {
     await Promise.all([checkNode(), refreshInstalled()])
@@ -115,7 +129,7 @@ export const useCompilersStore = defineStore('compilers', () => {
 
   return {
     available, installed, activeVersion, loadingAvailable, loadingInstalled,
-    progress, lastError, nodeAvailable, nodeVersion, nodePath, hasAny,
+    progress, lastError, nodeAvailable, nodeVersion, nodePath, hasAny, latestStable,
     bootstrap, checkNode, refreshAvailable, refreshInstalled,
     install, installLatest, uninstall, activate, applyProgress, clearProgress
   }

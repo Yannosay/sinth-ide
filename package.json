@@ -1,7 +1,7 @@
 {
   "name": "sinth-ide",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "Professional desktop IDE for the Sinth language.",
   "author": "Yannosay Productions",
@@ -22,7 +22,6 @@
     "tauri:icon": "tauri icon"
   },
   "dependencies": {
-    "@fontsource/unbounded": "^5.3.0",
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-dialog": "^2.2.0",
     "@tauri-apps/plugin-fs": "^2.2.0",

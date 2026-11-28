@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { markRaw, ref, shallowRef } from 'vue'
 import { getVersion } from '@tauri-apps/api/app'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
@@ -13,7 +13,8 @@ export type UpdateState = 'idle' | 'checking' | 'upToDate' | 'available' | 'down
 
 export const useUpdaterStore = defineStore('updater', () => {
   const state = ref<UpdateState>('idle')
-  const handle = ref<Update | null>(null)
+  // The Update object keeps private class fields, so it must never be wrapped in a reactive proxy.
+  const handle = shallowRef<Update | null>(null)
   const availableVersion = ref<string | null>(null)
   const currentVersion = ref<string | null>(null)
   const releaseNotes = ref<string | null>(null)
@@ -48,7 +49,7 @@ export const useUpdaterStore = defineStore('updater', () => {
         state.value = 'upToDate'
         return
       }
-      handle.value = found
+      handle.value = markRaw(found)
       availableVersion.value = found.version
       currentVersion.value = found.currentVersion
       releaseNotes.value = found.body?.trim() || null

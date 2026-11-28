@@ -45,6 +45,7 @@ pub fn run() {
             commands::fs::read_text_file,
             commands::fs::write_text_file,
             commands::fs::search_in_folder,
+            commands::fs::list_files,
             commands::files::create_file,
             commands::files::create_directory,
             commands::files::rename_path,

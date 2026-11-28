@@ -15,6 +15,8 @@ export interface ProjectAction {
   args: string[]
   /** 'sinth' runs the resolved Sinth compiler; anything else is a program on PATH. */
   program: string
+  /** False for commands that do not take --root, such as `sinth create`. */
+  root?: boolean
 }
 
 export interface ResolvedCompiler {
@@ -68,8 +70,8 @@ export const useProjectStore = defineStore('project', () => {
   const isSinth = computed(() => kind.value === 'sinth')
   const nodeMissing = computed(() => !!compiler.value && !compiler.value.node && (kind.value === 'sinth' || kind.value === 'node'))
 
-  async function refreshCompiler(): Promise<void> {
-    const root = workspace.rootPath
+  async function refreshCompiler(forRoot?: string): Promise<void> {
+    const root = forRoot ?? workspace.rootPath
     if (!root) { compiler.value = null; return }
     try { compiler.value = await invoke<ResolvedCompiler>('resolve_sinth', { root }) } catch { compiler.value = null }
   }
@@ -97,6 +99,13 @@ export const useProjectStore = defineStore('project', () => {
           { id: 'check', label: 'Check', kind: 'check', program: 'sinth', args: ['check'] },
           { id: 'deploy', label: 'Deploy', kind: 'deploy', program: 'sinth', args: ['deploy'] },
         )
+        // Projects set up with `sinth desktop init` also run and package as a native app.
+        if (top.some(n => n.isDirectory && n.name === 'src-tauri')) {
+          next.push(
+            { id: 'desktop', label: 'Run app', kind: 'preview', program: 'sinth', args: ['desktop', 'dev'] },
+            { id: 'desktop-build', label: 'Build app', kind: 'build', program: 'sinth', args: ['desktop', 'build'] },
+          )
+        }
       } else if (pkg) {
         nextKind = 'node'
         let pm = (pkg.packageManager ?? '').split('@')[0]
@@ -129,13 +138,23 @@ export const useProjectStore = defineStore('project', () => {
     const shell = settings.terminalShell || (isWindows ? 'powershell' : 'sh')
     const q = (a: string): string => quoteArg(a, shell)
     if (action.program === 'sinth') {
-      const args = [...action.args, '--root', root].map(q).join(' ')
+      const args = (action.root === false ? action.args : [...action.args, '--root', root]).map(q).join(' ')
       const entry = compiler.value?.entry
       if (entry) return `node ${q(entry)} ${args}`
       return `npx --yes ${q('@yannosay/sinth@latest')} ${args}`
     }
     const cd = isWindows && !shell.toLowerCase().includes('cmd') ? `Set-Location -LiteralPath ${q(root)}; ` : isWindows ? `cd /d ${q(root)} && ` : `cd ${q(root)} && `
     return cd + [action.program, ...action.args].map(q).join(' ')
+  }
+
+  /**
+   * Where a server action shows its address once it prints it. `sinth preview` serves production
+   * headers that forbid framing, so it always opens in the browser.
+   */
+  function openTarget(action: ProjectAction): 'preview' | 'browser' | null {
+    if (!isServer(action) || settings.runTarget === 'none' || action.id === 'desktop') return null
+    if (action.program === 'sinth' && action.id === 'dev') return settings.runTarget
+    return 'browser'
   }
 
   /**
@@ -154,7 +173,7 @@ export const useProjectStore = defineStore('project', () => {
         actionId: action.id,
         title: action.label,
         command: commandLine(action),
-        openBrowser: settings.openBrowserOnRun && isServer(action),
+        open: openTarget(action),
       },
     }))
   }
@@ -162,5 +181,10 @@ export const useProjectStore = defineStore('project', () => {
   /** Installs the Sinth agent skill for the project (`sinth skill`). Needs Sinth 5.3.4 or newer. */
   const skillAction: ProjectAction = { id: 'skill', label: 'Install AI agent skill', kind: 'build', program: 'sinth', args: ['skill'] }
 
-  return { kind, actions, compiler, detecting, isSinth, nodeMissing, detect, refreshCompiler, commandLine, runAction, skillAction }
+  /** Creates a project with `sinth create`; `dir` is an absolute path. */
+  function createAction(dir: string, template: 'starter' | 'minimal' | 'blank'): ProjectAction {
+    return { id: 'create', label: 'Create project', kind: 'build', program: 'sinth', args: ['create', dir, '--template', template, '--yes'], root: false }
+  }
+
+  return { createAction, kind, actions, compiler, detecting, isSinth, nodeMissing, detect, refreshCompiler, commandLine, runAction, skillAction }
 })
