@@ -43,7 +43,7 @@ Installers are built by the Release workflow when a version tag (for example `v0
 
 ## Credits
 
-File type icons from [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) (MIT).
+File type icons from [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) (MIT). Fonts: [Unbounded](https://github.com/googlefonts/unbounded) and [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), both under the SIL Open Font License 1.1 (license texts in `src/assets/fonts/`).
 
 ## License
 
